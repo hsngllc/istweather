@@ -1,0 +1,111 @@
+# Geliştirme ortamı. Kullanım: `.env.example` → `.env` (POSTGRES_PASSWORD doldurun), sonra
+#   docker compose up --build
+# Veriler named volume'larda durur; konteynerlere yalnız kaynak kod bind mount edilir (spec §4).
+name: hava
+
+x-app: &app
+  build: .
+  image: hava-app:dev
+  env_file: .env
+  environment:
+    HAVA_DB_HOST: db
+    # Windows bind mount'larında dosya olayları konteynere ulaşmaz; --reload yoklamayla çalışır.
+    WATCHFILES_FORCE_POLLING: "true"
+  volumes:
+    - ./src:/app/src
+    - ./alembic:/app/alembic
+    - ./config:/app/config
+    - ./tests:/app/tests
+    - grib_data:/data/grib
+    - parquet_data:/data/parquet
+
+services:
+  db:
+    image: timescale/timescaledb:2.30.2-pg17
+    env_file: .env
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # Şema migration'ları ve referans verisi (idempotent); bitince çıkar.
+  migrate:
+    <<: *app
+    command: ["sh", "-c", "alembic upgrade head && python -m hava.db.seed"]
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    <<: *app
+    command:
+      - uvicorn
+      - hava.api.app:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --reload
+      - --reload-dir
+      - /app/src
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=4)"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  worker:
+    <<: *app
+    command: ["python", "-m", "hava.scheduler"]
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  # Günlük pg_dump (yerel volume'a, 7 gün). Sunucu dışına gönderim (restic/rclone) Faz 8'de;
+  # hedef proje sahibine sorulacak (spec §14). Geliştirmede isteğe bağlı: --profile ops
+  backup:
+    image: timescale/timescaledb:2.30.2-pg17
+    profiles: ["ops"]
+    env_file: .env
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:-}
+    entrypoint:
+      - sh
+      - -c
+      - >-
+        while true; do
+        f=/backup/hava-$$(date -u +%Y%m%dT%H%MZ).sql.gz;
+        pg_dump -h db -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" | gzip > "$$f.tmp" && mv "$$f.tmp" "$$f";
+        find /backup -name 'hava-*.sql.gz' -mtime +7 -delete;
+        sleep 86400;
+        done
+    volumes:
+      - backup_data:/backup
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db_data:
+  grib_data:
+  parquet_data:
+  backup_data:

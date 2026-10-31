@@ -1,0 +1,60 @@
+"""Uygulama ayarları. Değerler ortam değişkenlerinden ve `.env` dosyasından okunur (spec §14)."""
+
+from __future__ import annotations
+
+from functools import lru_cache
+from typing import Literal
+
+from pydantic import Field, SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import URL
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="HAVA_", extra="ignore")
+
+    env: Literal["dev", "prod", "test"] = "dev"
+
+    # Veritabanı: TimescaleDB konteyneri POSTGRES_* değişkenlerini kullanır; uygulama da okur.
+    db_host: str = "db"
+    db_port: int = 5432
+    postgres_db: str = Field(default="hava", validation_alias="POSTGRES_DB")
+    postgres_user: str = Field(default="hava", validation_alias="POSTGRES_USER")
+    postgres_password: SecretStr = Field(
+        default=SecretStr(""), validation_alias="POSTGRES_PASSWORD"
+    )
+    # Testler/CI için tam bağlantı adresi (verilirse yukarıdakilerin yerine geçer).
+    database_url: str | None = None
+
+    http_user_agent: str = "istweather/0.1"
+    cors_origins: str = "http://localhost:3000"
+    admin_username: str = "admin"
+    admin_password: SecretStr = SecretStr("")
+    mgm_enabled: bool = False
+
+    region_config: str = "config/region.istanbul.yaml"
+    models_config: str = "config/models.yaml"
+    parquet_dir: str = "/data/parquet"
+    grib_dir: str = "/data/grib"
+
+    @property
+    def sqlalchemy_url(self) -> str | URL:
+        if self.database_url:
+            return self.database_url
+        return URL.create(
+            "postgresql+psycopg",
+            username=self.postgres_user,
+            password=self.postgres_password.get_secret_value() or None,
+            host=self.db_host,
+            port=self.db_port,
+            database=self.postgres_db,
+        )
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()

@@ -1,0 +1,64 @@
+# Üretim katmanı. Kullanım:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# Farklar: kod imajın içinde (bind mount yok), reload yok, veritabanı dışarı açık değil,
+# Caddy ile otomatik HTTPS, yedekleme servisi etkin, yeniden başlatma politikaları.
+services:
+  db:
+    ports: !reset []
+    restart: unless-stopped
+
+  migrate:
+    environment:
+      HAVA_ENV: prod
+    volumes: !override
+      - grib_data:/data/grib
+      - parquet_data:/data/parquet
+
+  api:
+    command:
+      - uvicorn
+      - hava.api.app:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --proxy-headers
+      - --forwarded-allow-ips
+      - "*"
+    environment:
+      HAVA_ENV: prod
+    ports: !reset []
+    volumes: !override
+      - grib_data:/data/grib
+      - parquet_data:/data/parquet
+    restart: unless-stopped
+
+  worker:
+    environment:
+      HAVA_ENV: prod
+    volumes: !override
+      - grib_data:/data/grib
+      - parquet_data:/data/parquet
+    restart: unless-stopped
+
+  backup:
+    profiles: !reset []
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2.11.6-alpine
+    env_file: .env
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

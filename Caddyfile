@@ -1,0 +1,6 @@
+# Üretim reverse proxy'si: otomatik HTTPS (Let's Encrypt). Alan adı .env'deki HAVA_DOMAIN.
+{$HAVA_DOMAIN} {
+	encode zstd gzip
+	header -Server
+	reverse_proxy api:8000
+}

@@ -1,0 +1,147 @@
+# Model kataloğu (spec §3, §11). Ayrıntı ve teyit linkleri: docs/data-sources.md.
+# active: canlı ingest'e alınacak mı (Faz 3'te ilgili adaptör yazılınca anlam kazanır).
+# internal_only: lisans gereği yalnız iç doğrulama (sitede/blend'de kullanılmaz).
+models:
+  - code: ecmwf_ifs
+    provider: ECMWF
+    kind: deterministic
+    resolution: "0.25° ve 0.1° (2026-10-20 06z'den)"
+    license: "CC BY 4.0 + ECMWF Terms of Use"
+    attribution_text: >-
+      This service is based on data and products of the European Centre for Medium-Range
+      Weather Forecasts (ECMWF). Source: www.ecmwf.int. This ECMWF data is published under a
+      Creative Commons Attribution 4.0 International (CC BY 4.0) licence. ECMWF does not accept
+      any liability whatsoever for any error or omission in the data, their availability, or for
+      any loss or damage arising from their use. Veriler işlenmiş ve diğer modellerle birleştirilmiştir.
+    active: true
+    internal_only: false
+    meta:
+      gust_definition: "10fg: 0–90 sa son 1 sa max; 93–144 sa 10fg3 son 3 sa; 150–360 sa son 6 sa"
+      version_breaks: ["2024-11-13", "2025-11-21", "2026-05-12", "2026-10-20"]
+  - code: ecmwf_ifs_ens
+    provider: ECMWF
+    kind: ensemble
+    resolution: "0.25° ve 0.1°; 50 pertürbe üye (kontrol = ecmwf_ifs)"
+    license: "CC BY 4.0 + ECMWF Terms of Use"
+    attribution_text: >-
+      This service is based on data and products of the European Centre for Medium-Range
+      Weather Forecasts (ECMWF). Source: www.ecmwf.int. CC BY 4.0. Veriler işlenmiştir.
+    active: true
+    internal_only: false
+  - code: ecmwf_aifs_single
+    provider: ECMWF
+    kind: deterministic
+    resolution: "0.25°"
+    license: "CC BY 4.0 + ECMWF Terms of Use"
+    attribution_text: >-
+      This service is based on data and products of the European Centre for Medium-Range
+      Weather Forecasts (ECMWF) (AIFS). Source: www.ecmwf.int. CC BY 4.0. Veriler işlenmiştir.
+    active: true
+    internal_only: false
+  - code: ecmwf_aifs_ens
+    provider: ECMWF
+    kind: ensemble
+    resolution: "0.25°; kontrol + 50 üye"
+    license: "CC BY 4.0 + ECMWF Terms of Use"
+    attribution_text: >-
+      This service is based on data and products of the European Centre for Medium-Range
+      Weather Forecasts (ECMWF) (AIFS ENS). Source: www.ecmwf.int. CC BY 4.0. Veriler işlenmiştir.
+    active: true
+    internal_only: false
+  - code: ncep_gfs
+    provider: NOAA/NCEP
+    kind: deterministic
+    resolution: "0.25°"
+    license: "NOAA açık veri (NODD)"
+    attribution_text: >-
+      Model verisi: NOAA/NCEP GFS (NOAA Open Data Dissemination). İşlenmiş ve diğer modellerle
+      birleştirilmiştir; orijinal NOAA verisi değildir ve NOAA tarafından onaylanmamıştır.
+    active: true
+    internal_only: false
+    meta:
+      gust_definition: "GUST anlık tanı alanı"
+      accumulation: "APCP: 6 saatlik kova + 0-N sürekli kayıt"
+  - code: ncep_gefs
+    provider: NOAA/NCEP
+    kind: ensemble
+    resolution: "0.25° (pgrb2s) / 0.5°; 31 üye"
+    license: "NOAA açık veri (NODD)"
+    attribution_text: >-
+      Model verisi: NOAA/NCEP GEFS (NOAA Open Data Dissemination). İşlenmiş ve diğer modellerle
+      birleştirilmiştir; orijinal NOAA verisi değildir ve NOAA tarafından onaylanmamıştır.
+    active: true
+    internal_only: false
+  - code: dwd_icon
+    provider: DWD
+    kind: deterministic
+    resolution: "13 km ikosahedral (#26)"
+    license: "CC BY 4.0"
+    attribution_text: "Based on data from Deutscher Wetterdienst (Source: Deutscher Wetterdienst), processed and combined with other models."
+    active: true
+    internal_only: false
+    meta:
+      gust_definition: "vmax_10m: son 60 dk max"
+  - code: dwd_icon_eu
+    provider: DWD
+    kind: deterministic
+    resolution: "6.5 km (#62 native; regular 0.0625° 2026-11-30'da bitiyor)"
+    license: "CC BY 4.0"
+    attribution_text: "Based on data from Deutscher Wetterdienst (Source: Deutscher Wetterdienst), processed and combined with other models."
+    active: true
+    internal_only: false
+  - code: dwd_icon_eps
+    provider: DWD
+    kind: ensemble
+    resolution: "20 km (#39); 40 üye"
+    license: "CC BY 4.0"
+    attribution_text: "Based on data from Deutscher Wetterdienst (Source: Deutscher Wetterdienst), processed."
+    active: true
+    internal_only: false
+  - code: dwd_icon_eu_eps
+    provider: DWD
+    kind: ensemble
+    resolution: "10 km (#63); 40 üye"
+    license: "CC BY 4.0"
+    attribution_text: "Based on data from Deutscher Wetterdienst (Source: Deutscher Wetterdienst), processed."
+    active: true
+    internal_only: false
+  - code: mf_arpege
+    provider: Météo-France
+    kind: deterministic
+    resolution: "0.1° EURAT01"
+    license: "Licence Ouverte / Etalab 2.0"
+    attribution_text: "Informations créées à partir de données de Météo-France (ARPEGE). Source : Météo-France."
+    active: true
+    internal_only: false
+    meta:
+      history: "yetersiz geçmiş (ücretsiz arşiv yok)"
+  - code: ukmo_global_10km
+    provider: UK Met Office
+    kind: deterministic
+    resolution: "10 km (0.140625° × 0.09375°)"
+    license: "CC BY-SA 4.0"
+    attribution_text: "British Crown copyright, the Met Office, licensed under CC BY-SA 4.0."
+    active: true
+    internal_only: true
+    meta:
+      gust_definition: "wind_gust_at_10m: önceki 10 dk'daki en yüksek 3 sn ortalaması; _max-PTnnH: pencere max"
+      accumulation: "aralık toplamı (PT01H/PT03H/PT06H)"
+      backfill: "AWS 2 yıllık kayan arşiv; nokta çıkarımı 2026-11-01'de başlatıldı"
+  - code: eccc_gdps
+    provider: ECCC
+    kind: deterministic
+    resolution: "15 km (0.15°)"
+    license: "ECCC Data Servers End-use Licence 2.1.1"
+    attribution_text: "Data Source: Environment and Climate Change Canada."
+    active: true
+    internal_only: false
+    meta:
+      version_breaks: ["2026-05-26"]
+  - code: eccc_geps
+    provider: ECCC
+    kind: ensemble
+    resolution: "0.5° (Datamart); 21 üye"
+    license: "ECCC Data Servers End-use Licence 2.1.1"
+    attribution_text: "Data Source: Environment and Climate Change Canada."
+    active: false
+    internal_only: false
