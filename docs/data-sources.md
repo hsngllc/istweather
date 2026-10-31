@@ -51,7 +51,8 @@
 | METAR (AWC) | Gözlem | `https://aviationweather.gov/api/data/metar` | ABD kamu malı (NWS koşulları) | Evet (koşullu; yabancı orijin ❓) | 30 gün | [Data API](https://aviationweather.gov/data/api/) |
 | METAR geçmişi (IEM) | Gözlem arşivi | `https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py` | Public domain | Evet | LTBA 1945, LTFJ 2003, LTFM 2018-11-02 | [disclaimer](https://mesonet.agron.iastate.edu/disclaimer.php) |
 | MGM gözlemleri | Gözlem | **BEKLEMEDE** — doğrudan kullanım iptal (2026-11-01); yalnız yazılı izin veya MEVBİS lisansıyla resmî veri | Resmî lisansa bağlı | Resmî lisansa bağlı | — | [Yasal Uyarı](https://www.mgm.gov.tr/site/yasal-uyari.aspx), [mgm.gov.tr](https://www.mgm.gov.tr/) |
-| İBB açık verisi (hava kalitesi istasyonları, AKOM AWOS konumları) | Gözlem / meta | bkz. §4.4 | bkz. §4.4 | bkz. §4.4 | bkz. §4.4 | [data.ibb.gov.tr](https://data.ibb.gov.tr) |
+| İBB hava kalitesi web servisi | Gözlem (yalnız kirletici) | `https://api.ibb.gov.tr/havakalitesi/OpenDataPortalHandler/GetAQIByStationId` | İBB Açık Veri Lisansı (CC BY 4.0 uyumlu) | Evet (atıfla) | Ocak 2024 ve öncesi sorgulanabiliyor | [veri seti](https://data.ibb.gov.tr/dataset/hava-kalitesi-istasyon-olcum-sonuclari-web-servisi) — **meteoroloji parametresi yok, doğrulamada kullanılmaz** (§4.4) |
+| İBB AKOM AWOS istasyon konumları | İstasyon meta (yalnız konum) | CSV (data.ibb.gov.tr) | İBB Açık Veri Lisansı | Evet (atıfla) | — (ölçüm yok) | [veri seti](https://data.ibb.gov.tr/dataset/meteoroloji-gozlem-istasyon-konumlari) — **ölçüm yayınlanmıyor** (§4.4) |
 | WMO WIS2 SYNOP | Gözlem | — (Türkiye yayını yok) | UDP core = free & unrestricted | — | — | [GDC](https://wis2-gdc.weather.gc.ca/collections/wis2-discovery-metadata) |
 | OpenStreetMap | İlçe sınırı / nokta | Overpass API | ODbL 1.0 | Evet (atıf + ODbL koşulları) | — | [copyright](https://www.openstreetmap.org/copyright) |
 | SRTM GL1 v3 / ASTER GDEM v3 | Yükseklik | OpenTopoData genel API (yalnız Faz 0) | NASA EOSDIS açık | Evet | — | [SRTMGL1](https://www.earthdata.nasa.gov/data/catalog/lpcloud-srtmgl1-003) |
@@ -432,6 +433,27 @@ Taban adres: `https://servis.mgm.gov.tr/web` (Express/nginx arkasında JSON serv
 - **Dolaylı yol — belirsiz:** Türk GTS bültenleri DWD'nin geçici "GTS-to-WIS2" geçidinde akıyor (METAR/TAF/SIGMET görüldü; "recommended" ve erişimi ulusal servislerle sınırlı). İstanbul SYNOP bültenleri (SMTU10/60 LTAA, TAC formatı, 3 saatlik) geçitte dinleme penceresinde görülmedi ❓.
 - **WMO Unified Data Policy** ([Res. 1 Cg-Ext 2021](https://public.wmo.int/sites/default/files/Cg-Ext2021-d04-1-WMO-UNIFIED-POLICY-FOR-THE-INTERNATIONAL-approved_en_0.pdf)) ✅: "core data" (GBON yüzey gözlemleri) "free and unrestricted" = "no conditions on use" (ticari dahil); atıf koşul değil, teşvik ediliyor. RBON gözlemleri "recommended" → koşul konabilir.
 - **OSCAR/Surface — İstanbul WMO istasyonları** ✅: 17059 Sarıyer/Kumköy-Kilyos (**GBON**), 17061 Sarıyer (**GBON**), 17064 İstanbul Bölge/Kartal (**GBON**, GSN), 17060 Atatürk HVL (RBON), 17063 Sabiha Gökçen (RBON), 17058 İstanbul HVL (RBON). GBON olanlar core → bir kanaldan erişilirse ticari kullanılabilir. 17062 OSCAR'da yok (ISD'ye göre 2007'de kapanmış) ama MGM'de "KADIKÖY GÖZTEPE RIHTIM" adıyla aktif → MGM istasyon no'su WMO no'suyla karıştırılmamalı.
+
+### 4.4 İBB Açık Veri Portalı (ek araştırma, 2026-11-01)
+
+**Sonuç: portalda model doğrulamasında kullanılabilecek, lisanslı, saatlik ve güncel meteoroloji gözlemi yok** ✅. Doğrulama planı METAR (canlı) + IEM (geçmiş) olarak kalır.
+
+**(A) Hava Kalitesi İstasyon Ölçüm Sonuçları Web Servisi** ✅ ([veri seti](https://data.ibb.gov.tr/dataset/hava-kalitesi-istasyon-olcum-sonuclari-web-servisi); CKAN id `602bd2c7-8480-404d-b52d-41d0dd906b7b`; yayıncı Çevre Koruma ve Kontrol Dairesi Başkanlığı)
+- Uç noktalar (anahtarsız): `GET https://api.ibb.gov.tr/havakalitesi/OpenDataPortalHandler/GetAQIStations` (28 istasyon; `Id`, `Name`, `Adress`, `Location` = WKT `POINT(lon lat)`) ve `GET …/GetAQIByStationId?StationId=<GUID>&StartDate=dd.MM.yyyy HH:mm:ss&EndDate=…` (saatlik; JSON). Kullanım dokümanı v1.01'deki tarih biçimi ("dd-MM-yyyy") yanlış, çalışan biçim nokta ayraçlı.
+- **Meteoroloji parametresi YOK** (çapraz kontrol ✅): `Concentration` ve `AQI` nesnelerinde yalnız `CO`, `NO2`, `O3`, `PM10`, `SO2` var (PM2.5 bile yok). Sıcaklık, nem, rüzgâr, basınç ve yağış yayınlanmıyor.
+- İstasyonlarda meteoroloji sensörü bulunduğu biliniyor (2020 tarihli tek günlük XLSX'te 14–15 istasyon için T, RH, rüzgâr, basınç var; veri seti "artık güncellenmeyecek" notlu) ama bu servis ölçümlerini vermiyor. havakalitesi.ibb.gov.tr web arayüzündeki sıcaklık/rüzgâr alanları açık lisanslı veri değil → kullanılmaz.
+- Zaman: saatlik, `ReadTime` ofsetsiz (yerel saat, TRT, olduğu güçlü çıkarım ⚠️); Ocak 2024 ve daha eskisi sorgulanabiliyor.
+- **Doğrulamada kullanılabilir mi: Hayır.** İleride ayrı bir "hava kalitesi" özelliği için uygun (lisans ticari kullanıma açık).
+
+**(B) İstanbul Meteoroloji Gözlem İstasyon Konumları Veri Seti (AKOM AWOS/BEUS)** ✅ ([veri seti](https://data.ibb.gov.tr/dataset/meteoroloji-gozlem-istasyon-konumlari); yayıncı Afet İşleri Dairesi Başkanlığı / AKOM)
+- AWOS CSV: 10 istasyon (Çanta, Çavuşbaşı, Olimpiyat, Terkos, Hadımköy, AKOM, Ömerli, Aksaray, Kamiloba, Büyükada); alanlar `Sıra No; İstasyon Adı; İstasyon Koordinatları`. BEUS (buzlanma erken uyarı) CSV: 57 istasyon.
+- **Yalnız konum var; ölçüm yok.** Koordinatlar derece-dakika hassasiyetinde (~1,8 km), bazı satırlar bozuk; yükseklik, ilçe ve sensör bilgisi yok. AWOS/AKOM ölçümleri portalda ve AKOM sitesinde lisanslı bir kanaldan yayınlanmıyor (AKOM'a yazılı başvuru gerekebilir ❓).
+- Not: İBB trafik haritasının kullandığı belgelenmemiş bir hava uç noktası bulundu (`tkmservices.ibb.gov.tr`, MGM kaynaklı istasyonlar içeriyor, sorgu anında tüm değerler -999). Açık veri değil, lisans/kullanım koşulu yok ve MGM verisi içeriyor → **kullanılmaz**.
+- **Doğrulamada kullanılabilir mi: Hayır.**
+
+**(C) Diğer veri setleri** (portalda 576 paket tarandı): İSKİ baraj yağışları (günlük, 2011-01-01 → 2024-02-18; ölçüm kaynağı belirsiz ❓) yalnız Ocak–Şubat 2024 için ikincil günlük yağış kontrolü olabilir; Dünya Bankası 1991–2020 mevsimsel döngüsü zaman serisi değil.
+
+**Lisans** ✅ ([İBB Açık Veri Lisansı](https://data.ibb.gov.tr/en/license), CKAN `ibb-license`, v1.0, CC BY 4.0 ve ODC-BY ile uyumlu): kopyalama, yayımlama, dağıtma, uyarlama ve "commercially and non-commercially" kullanma serbest. Atıf zorunlu; sağlayıcıya özel metin yoksa: "Contains public sector information licensed under the Attribution 4.0 International (CC BY 4.0)." (TR: "Atıf 4.0 Uluslararası (CC BY 4.0) kapsamında lisanslanan kamu sektörü bilgilerini içerir."). Resmî statü veya İBB onayı ima edilemez; sürekli sağlama garantisi yok.
 
 ---
 

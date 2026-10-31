@@ -1,0 +1,391 @@
+# Bölge konfigürasyonu: İstanbul (v1)
+# Kaynaklar: docs/districts-and-stations.md (Faz 0). Koordinatlar elle girilmedi.
+# - İlçe noktaları: OpenStreetMap (ODbL, © OpenStreetMap contributors), Overpass osm_base 2026-10-31T21:41:20Z
+# - Yükseklik: SRTM GL1 v3 (OpenTopoData, bilineer), m
+# - METAR istasyonları: WMO OSCAR/Surface koordinat ve yükseklikleri
+region: istanbul
+bbox:            # spec §5.1 İstanbul kutusu (derece)
+  lat_min: 40.7
+  lat_max: 41.7
+  lon_min: 27.8
+  lon_max: 30.0
+districts:
+  - slug: adalar
+    name: "Adalar"
+    points:
+      - lat: 40.87417
+        lon: 29.12933
+        elevation_m: 10
+        coastal: true
+        dist_to_coast_m: 101
+        source: "OSM node 965795474 (admin_centre) of relation 963209"
+  - slug: arnavutkoy
+    name: "Arnavutköy"
+    points:
+      - lat: 41.18447
+        lon: 28.74124
+        elevation_m: 165
+        coastal: true
+        dist_to_coast_m: 13770
+        source: "OSM node 8582371040 (label) of relation 1766093"
+  - slug: atasehir
+    name: "Ataşehir"
+    points:
+      - lat: 40.99294
+        lon: 29.11352
+        elevation_m: 74
+        coastal: false
+        dist_to_coast_m: 4777
+        source: "OSM node 3933476042 (label) of relation 1276672"
+  - slug: avcilar
+    name: "Avcılar"
+    points:
+      - lat: 40.97994
+        lon: 28.72167
+        elevation_m: 69
+        coastal: true
+        dist_to_coast_m: 1025
+        source: "OSM node 2686436887 (label) of relation 1766094"
+  - slug: bagcilar
+    name: "Bağcılar"
+    points:
+      - lat: 41.03455
+        lon: 28.85676
+        elevation_m: 90
+        coastal: false
+        dist_to_coast_m: 6592
+        source: "OSM node 27426565 (label) of relation 1766098"
+  - slug: bahcelievler
+    name: "Bahçelievler"
+    points:
+      - lat: 41.00305
+        lon: 28.86577
+        elevation_m: 52
+        coastal: false
+        dist_to_coast_m: 3211
+        source: "OSM node 976490088 (label) of relation 1766095"
+  - slug: bakirkoy
+    name: "Bakırköy"
+    points:
+      - lat: 40.97826
+        lon: 28.87445
+        elevation_m: 22
+        coastal: true
+        dist_to_coast_m: 490
+        source: "OSM node 26504247 (label) of relation 1766096"
+  - slug: basaksehir
+    name: "Başakşehir"
+    points:
+      - lat: 41.10758
+        lon: 28.79507
+        elevation_m: 147
+        coastal: false
+        dist_to_coast_m: 13189
+        source: "OSM node 965804205 (label) of relation 1766099"
+  - slug: bayrampasa
+    name: "Bayrampaşa"
+    points:
+      - lat: 41.03455
+        lon: 28.91184
+        elevation_m: 101
+        coastal: false
+        dist_to_coast_m: 2482
+        source: "OSM node 7427633848 (label) of relation 1766097"
+  - slug: besiktas
+    name: "Beşiktaş"
+    points:
+      - lat: 41.04285
+        lon: 29.00753
+        elevation_m: 12
+        coastal: true
+        dist_to_coast_m: 169
+        source: "OSM node 251302687 (label) of relation 1765893"
+  - slug: beykoz
+    name: "Beykoz"
+    points:
+      - lat: 41.13430
+        lon: 29.09204
+        elevation_m: 6
+        coastal: true
+        dist_to_coast_m: 38
+        source: "OSM node 251303423 (admin_centre) of relation 1276910"
+  - slug: beylikduzu
+    name: "Beylikdüzü"
+    points:
+      - lat: 41.00381
+        lon: 28.63729
+        elevation_m: 154
+        coastal: true
+        dist_to_coast_m: 3178
+        source: "OSM node 965804730 (label) of relation 1766100"
+  - slug: beyoglu
+    name: "Beyoğlu"
+    points:
+      - lat: 41.02842
+        lon: 28.97368
+        elevation_m: 66
+        coastal: true
+        dist_to_coast_m: 539
+        source: "OSM node 1651655687 (label) of relation 1765892"
+  - slug: buyukcekmece
+    name: "Büyükçekmece"
+    points:
+      - lat: 41.02165
+        lon: 28.57976
+        elevation_m: 3
+        coastal: true
+        dist_to_coast_m: 426
+        source: "OSM node 26504699 (label) of relation 1275387"
+  - slug: catalca
+    name: "Çatalca"
+    points:
+      - lat: 41.14368
+        lon: 28.46052
+        elevation_m: 85
+        coastal: true
+        dist_to_coast_m: 11759
+        source: "OSM node 965804875 (admin_centre) of relation 1275389"
+  - slug: cekmekoy
+    name: "Çekmeköy"
+    points:
+      - lat: 41.03516
+        lon: 29.17391
+        elevation_m: 126
+        coastal: false
+        dist_to_coast_m: 10305
+        source: "OSM node 5048705441 (label) of relation 1276034"
+  - slug: esenler
+    name: "Esenler"
+    points:
+      - lat: 41.03762
+        lon: 28.88245
+        elevation_m: 90
+        coastal: false
+        dist_to_coast_m: 4619
+        source: "OSM node 965806119 (label) of relation 1766101"
+  - slug: esenyurt
+    name: "Esenyurt"
+    points:
+      - lat: 41.03429
+        lon: 28.68011
+        elevation_m: 128
+        coastal: false
+        dist_to_coast_m: 6886
+        source: "OSM node 26505356 (label) of relation 1766102"
+  - slug: eyupsultan
+    name: "Eyüpsultan"
+    points:
+      - lat: 41.04784
+        lon: 28.93274
+        elevation_m: 10
+        coastal: true
+        dist_to_coast_m: 287
+        source: "OSM node 251301080 (admin_centre) of relation 1766103"
+  - slug: fatih
+    name: "Fatih"
+    points:
+      - lat: 41.01928
+        lon: 28.94793
+        elevation_m: 59
+        coastal: true
+        dist_to_coast_m: 1182
+        source: "OSM node 26504810 (label) of relation 1766104"
+  - slug: gaziosmanpasa
+    name: "Gaziosmanpaşa"
+    points:
+      - lat: 41.05783
+        lon: 28.91225
+        elevation_m: 123
+        coastal: false
+        dist_to_coast_m: 2062
+        source: "OSM node 965806995 (label) of relation 1766105"
+  - slug: gungoren
+    name: "Güngören"
+    points:
+      - lat: 41.02528
+        lon: 28.87265
+        elevation_m: 82
+        coastal: false
+        dist_to_coast_m: 5137
+        source: "OSM node 965807755 (label) of relation 1766106"
+  - slug: kadikoy
+    name: "Kadıköy"
+    points:
+      - lat: 40.99130
+        lon: 29.02456
+        elevation_m: 9
+        coastal: true
+        dist_to_coast_m: 159
+        source: "OSM node 2673025441 (label) of relation 1276548"
+  - slug: kagithane
+    name: "Kağıthane"
+    points:
+      - lat: 41.08121
+        lon: 28.97302
+        elevation_m: 12
+        coastal: true
+        dist_to_coast_m: 2774
+        source: "OSM node 26505332 (label) of relation 1765894"
+  - slug: kartal
+    name: "Kartal"
+    points:
+      - lat: 40.88850
+        lon: 29.18589
+        elevation_m: 5
+        coastal: true
+        dist_to_coast_m: 214
+        source: "OSM node 251364891 (label) of relation 1276013"
+  - slug: kucukcekmece
+    name: "Küçükçekmece"
+    points:
+      - lat: 40.99187
+        lon: 28.77120
+        elevation_m: 12
+        coastal: true
+        dist_to_coast_m: 243
+        source: "OSM node 26504855 (label) of relation 7786498"
+  - slug: maltepe
+    name: "Maltepe"
+    points:
+      - lat: 40.92475
+        lon: 29.13108
+        elevation_m: 22
+        coastal: true
+        dist_to_coast_m: 671
+        source: "OSM node 251364890 (label) of relation 1276407"
+  - slug: pendik
+    name: "Pendik"
+    points:
+      - lat: 40.87687
+        lon: 29.23497
+        elevation_m: 6
+        coastal: true
+        dist_to_coast_m: 242
+        source: "OSM node 965808549 (admin_centre) of relation 1276011"
+  - slug: sancaktepe
+    name: "Sancaktepe"
+    points:
+      - lat: 40.99052
+        lon: 29.22886
+        elevation_m: 126
+        coastal: false
+        dist_to_coast_m: 11360
+        source: "OSM node 965808713 (label) of relation 1276014"
+  - slug: sariyer
+    name: "Sarıyer"
+    points:
+      - lat: 41.16858
+        lon: 29.05726
+        elevation_m: 6
+        coastal: true
+        dist_to_coast_m: 58
+        source: "OSM node 2686428097 (label) of relation 1765895"
+  - slug: sile
+    name: "Şile"
+    points:
+      - lat: 41.17441
+        lon: 29.61252
+        elevation_m: 47
+        coastal: true
+        dist_to_coast_m: 482
+        source: "OSM node 247999748 (label) of relation 1275310"
+  - slug: silivri
+    name: "Silivri"
+    points:
+      - lat: 41.07425
+        lon: 28.24817
+        elevation_m: 8
+        coastal: true
+        dist_to_coast_m: 455
+        source: "OSM node 8647442778 (admin_centre) of relation 1275379"
+  - slug: sisli
+    name: "Şişli"
+    points:
+      - lat: 41.06379
+        lon: 28.98316
+        elevation_m: 95
+        coastal: false
+        dist_to_coast_m: 2916
+        source: "OSM node 251302611 (label) of relation 1765896"
+  - slug: sultanbeyli
+    name: "Sultanbeyli"
+    points:
+      - lat: 40.96702
+        lon: 29.26713
+        elevation_m: 139
+        coastal: false
+        dist_to_coast_m: 10470
+        source: "OSM node 5048705440 (label) of relation 1276012"
+  - slug: sultangazi
+    name: "Sultangazi"
+    points:
+      - lat: 41.10433
+        lon: 28.86144
+        elevation_m: 152
+        coastal: false
+        dist_to_coast_m: 8182
+        source: "OSM node 8458146161 (label) of relation 1766108"
+  - slug: tuzla
+    name: "Tuzla"
+    points:
+      - lat: 40.81617
+        lon: 29.30342
+        elevation_m: 6
+        coastal: true
+        dist_to_coast_m: 143
+        source: "OSM node 251376256 (label) of relation 1276010"
+  - slug: umraniye
+    name: "Ümraniye"
+    points:
+      - lat: 41.02564
+        lon: 29.09630
+        elevation_m: 153
+        coastal: false
+        dist_to_coast_m: 4473
+        source: "OSM node 251358378 (label) of relation 1276890"
+  - slug: uskudar
+    name: "Üsküdar"
+    points:
+      - lat: 41.02655
+        lon: 29.01513
+        elevation_m: 2
+        coastal: true
+        dist_to_coast_m: 83
+        source: "OSM node 26505047 (label) of relation 1276889"
+  - slug: zeytinburnu
+    name: "Zeytinburnu"
+    points:
+      - lat: 40.98987
+        lon: 28.90375
+        elevation_m: 30
+        coastal: true
+        dist_to_coast_m: 811
+        source: "OSM node 26505044 (label) of relation 1766109"
+stations:
+  - source: metar
+    external_id: LTFM
+    wmo_id: "17058"
+    wigos_id: "0-792-0-17058"
+    name: "İstanbul Havalimanı"
+    lat: 41.264714
+    lon: 28.728836
+    elevation_m: 99
+    coord_source: "WMO OSCAR/Surface 0-792-0-17058"
+  - source: metar
+    external_id: LTFJ
+    wmo_id: "17063"
+    wigos_id: "0-20000-0-17063"
+    name: "İstanbul Sabiha Gökçen Havalimanı"
+    lat: 40.892797
+    lon: 29.297236
+    elevation_m: 99
+    coord_source: "WMO OSCAR/Surface 0-20000-0-17063"
+  - source: metar
+    external_id: LTBA
+    wmo_id: "17060"
+    wigos_id: "0-20000-0-17060"
+    name: "İstanbul Atatürk Havalimanı"
+    lat: 40.966936
+    lon: 28.815562
+    elevation_m: 33
+    coord_source: "WMO OSCAR/Surface 0-20000-0-17060"
