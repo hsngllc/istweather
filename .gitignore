@@ -1,0 +1,40 @@
+# Gizli değerler
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+
+# Araç önbellekleri
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Veri: veritabanı, GRIB/NetCDF ve Parquet git'e girmez (Docker named volume'larda durur)
+.data/
+data/
+*.grib
+*.grib2
+*.grib2.bz2
+*.grb2
+*.nc
+*.parquet
+*.idx
+
+# Test fixture'ları istisna (küçük, etiketli örnekler)
+!tests/fixtures/**
+
+# Editör / işletim sistemi
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
