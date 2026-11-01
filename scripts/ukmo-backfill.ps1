@@ -6,7 +6,9 @@
 #   powershell -ExecutionPolicy Bypass -File scripts\ukmo-backfill.ps1 -Workers 16
 #   powershell -ExecutionPolicy Bypass -File scripts\ukmo-backfill.ps1 -Stop      # durdur
 param(
-    [int]$Workers = 32,
+    # Hız S3 gecikmesiyle sınırlı (istek başına ~70 ms), bant genişliğiyle değil; Windows'ta süreç
+    # havuzu en fazla 61 işçi kabul eder.
+    [int]$Workers = 60,
     [switch]$Stop
 )
 
