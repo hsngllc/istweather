@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 from zoneinfo import ZoneInfo
 
@@ -17,6 +17,14 @@ from hava.db.session import get_session
 
 router = APIRouter()
 ISTANBUL = ZoneInfo("Europe/Istanbul")
+# Worker çökerse kendi kaydını bayat işaretleyemez; kalp atışının yaşına API bakar.
+WORKER_STALE = timedelta(minutes=3)
+
+
+def _stale(row: SourceHealth, now: datetime) -> bool:
+    if row.source == "worker":
+        return row.last_success_at is None or now - row.last_success_at > WORKER_STALE
+    return row.stale
 
 
 def _ts(value: datetime | None) -> dict[str, str] | None:
@@ -44,7 +52,7 @@ def health(response: Response, session: Annotated[Session, Depends(get_session)]
         body["sources"] = [
             {
                 "source": r.source,
-                "stale": r.stale,
+                "stale": _stale(r, now),
                 "last_success_at": _ts(r.last_success_at),
                 "last_error_at": _ts(r.last_error_at),
             }

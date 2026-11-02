@@ -26,11 +26,29 @@ class Settings(BaseSettings):
     # Testler/CI için tam bağlantı adresi (verilirse yukarıdakilerin yerine geçer).
     database_url: str | None = None
 
-    http_user_agent: str = "istweather/0.1"
+    http_user_agent: str = "istweather/0.1 (+https://github.com/hsngllc/istweather)"
     cors_origins: str = "http://localhost:3000"
     admin_username: str = "admin"
     admin_password: SecretStr = SecretStr("")
     mgm_enabled: bool = False
+
+    # Gözlem kaynakları (spec §5.3). Adresler kaynak kapatma denemesi için değiştirilebilir.
+    metar_awc_url: str = "https://aviationweather.gov/api/data/metar"
+    metar_iem_url: str = "https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py"
+    metar_awc_hours: int = 3
+    # Tazelik eşikleri (dakika). METAR 30 dakikada bir yayımlanır.
+    metar_stale_minutes: int = 90
+    awc_fetch_stale_minutes: int = 30
+
+    # Bildirimler (spec §14). Kanal ayarı boşsa yalnız loga yazılır.
+    telegram_bot_token: SecretStr = SecretStr("")
+    telegram_chat_id: str = ""
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: SecretStr = SecretStr("")
+    smtp_from: str = ""
+    alert_email_to: str = ""
 
     region_config: str = "config/region.istanbul.yaml"
     models_config: str = "config/models.yaml"

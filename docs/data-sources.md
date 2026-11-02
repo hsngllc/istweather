@@ -370,6 +370,18 @@ Proje sahibi model verisinin Open-Meteo'dan alınmamasına karar verdi. Bilgi i�
 
 Lisans: AWC verisi NWS feragatnamesine göre kamu malı; koşullar: kendi verin gibi sunmamak, NOAA/NWS onayı ima etmemek, değiştirip resmî materyal gibi sunmamak ([disclaimer](https://www.weather.gov/disclaimer)) ✅. Türkiye kaynaklı (DHMİ/MGM) METAR'ların ticari yeniden dağıtımı hiçbir birincil kaynakta ayrıca ele alınmamış ❓. Öneri: ham METAR'ı yeniden dağıtmadan doğrulamada kullanmak; gösterimde "Kaynak: NOAA/NWS AWC" atfı.
 
+**Faz 2 bulguları (2026-11-02)** ✅ — değerler bu yüzden ham METAR'dan kendi ayrıştırıcımızla çözülüyor
+([ADR-0004](decisions/0004-metar-ham-metinden-ayristirma.md)):
+- AWC JSON: boş alanlar anahtarıyla birlikte düşüyor (ör. `wgst`, `slp` yok); `visib` statute mile
+  (4100 m → 2,55; 9999 → `"6+"`); `rawOb` `"METAR LTFJ …"` önekiyle geliyor.
+- IEM `asos.py`: `data=metar` ham metni öneksiz verir; `report_type=3` (rutin) ve `4` (SPECI) birlikte
+  istenir. Çözülmüş alanlarda sıcaklık °F, görüş mil; ölçülemeyen görüşü (`////`) 6,21 mil (10 km)
+  yazıyor, Türk METAR'larında olmayan yağışı `p01i=0.00` diye dolduruyor, `RESHRA`'yı hadise
+  sayıyor → bu alanlar kullanılmıyor.
+- 2025'te üç istasyonda 52.844 METAR (istasyon başına ≈ 48/gün); SPECI görülmedi. Ayrıştırıcı hepsini
+  başlık hatası ve tanınmayan grup olmadan çözdü.
+- Rutin METAR zamanları :20 ve :50; AWC'de yayın gecikmesi ≈ 5–8 dakika (`receiptTime`).
+
 ### 4.2 MGM "Son Durumlar" — BEKLEMEDE
 
 > **Durum (2026-11-01, proje sahibi kararı):** Doğrudan kullanım **iptal edildi**. `servis.mgm.gov.tr`'ye istek gönderilmez ve MGM erişim kısıtını aşmaya yönelik kod yazılmaz. MGM verisi yalnızca MGM'nin yazılı izni veya MEVBİS lisansıyla resmî yoldan gelirse eklenir; o zamana kadar bu kaynak "beklemede". Aşağıdaki teknik bulgular yalnız Faz 0 kaydı olarak duruyor; uygulamada kullanılmaz.

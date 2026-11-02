@@ -25,11 +25,12 @@ def get_with_retry(
     headers: dict[str, str] | None = None,
     attempts: int = 6,
     sleep: Callable[[float], None] = time.sleep,
+    params: dict[str, str | list[str]] | None = None,
 ) -> httpx.Response:
     delay = 1.0
     for attempt in range(1, attempts + 1):
         try:
-            resp = client.get(url, headers=headers)
+            resp = client.get(url, headers=headers, params=params)
         except (httpx.TransportError, httpx.TimeoutException):
             if attempt == attempts:
                 raise

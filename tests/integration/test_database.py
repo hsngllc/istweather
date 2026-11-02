@@ -20,17 +20,6 @@ pytestmark = [
 ROOT = Path(__file__).resolve().parents[2]
 
 
-@pytest.fixture(scope="module")
-def migrated() -> str:
-    from alembic import command
-    from alembic.config import Config
-
-    cfg = Config(str(ROOT / "alembic.ini"))
-    command.upgrade(cfg, "head")
-    command.check(cfg)  # modeller ile migration arasında fark yok
-    return os.environ["HAVA_DATABASE_URL"]
-
-
 def test_hypertables_and_compression(migrated: str) -> None:
     engine = create_engine(migrated)
     with engine.connect() as conn:
@@ -78,4 +67,5 @@ def test_heartbeat_and_health(migrated: str) -> None:
     assert resp.status_code == 200
     body = resp.json()
     assert body["database"]["ok"] is True
-    assert [s["source"] for s in body["sources"]] == ["worker"]
+    worker = next(s for s in body["sources"] if s["source"] == "worker")
+    assert worker["stale"] is False

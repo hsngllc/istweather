@@ -20,6 +20,8 @@ geçerlidir (ör. model verisi Open-Meteo'dan değil, ham kaynaklardan gelir).
 - **MGM: doğrudan kullanım iptal.** `servis.mgm.gov.tr`'ye istek gönderme; MGM erişim kısıtını aşan
   (`Origin`/`Referer` taklidi vb.) kod yazma. MGM yalnız yazılı izin veya MEVBİS lisansıyla gelirse eklenir.
 - Gözlem: canlı METAR (AWC), geçmiş IEM. WIS2'de Türkiye yok. İBB açık verisinde meteoroloji gözlemi yok.
+- Ham METAR ürün tarafından yeniden dağıtılmaz (raporlarda çözülmüş değer gösterilir); yalnız
+  `tests/fixtures/metar/` altındaki küçük test örnekleri herkese açık depoda durabilir (2026-11-02).
 - UKMO (CC BY-SA) yalnız iç doğrulama (`models.internal_only`); sitede ve blend'de kullanılmaz.
 - ARPEGE: yalnız açık paketler (Licence Ouverte 2.0); TIGGE'deki MF verisi CC BY-NC → kullanılmaz.
 - Kıyı merkez noktaları kaydırılmaz; model değeri kara-deniz maskeli seçimle alınır.
@@ -39,6 +41,8 @@ geçerlidir (ör. model verisi Open-Meteo'dan değil, ham kaynaklardan gelir).
 - Docker: `docker compose up --build` (önce `.env`); üretim: `-f docker-compose.yml -f docker-compose.prod.yml`
 - Migration: `alembic revision -m "..."` (elle), `alembic upgrade head`; modeller değişince yeni migration.
 - UKMO çıkarımı/yükleme: `docker compose run --rm --no-deps worker python -m hava.ingest.archive.ukmo --out /data/parquet/ukmo_global`, ardından `... -m hava.ingest.archive.load_ukmo`
+- Tek servisi yeniden başlatırken `docker compose up -d --no-deps --force-recreate <servis>`; `--no-deps`
+  olmadan veritabanı da yeniden başlar ve uzun süren yüklemelerin bağlantısı kopar.
 - Windows'ta: API dış portu `.env`'de `HAVA_API_PORT` (8000 başka programda). Git Bash'ten `docker compose exec` ile
   `/data/...` yolu verirken `MSYS_NO_PATHCONV=1`; PowerShell 5.1 tırnaklı argümanları bozduğu için `psql` komutlarını Bash'ten ver.
 

@@ -10,6 +10,9 @@ import structlog
 
 def configure_logging(level: int = logging.INFO) -> None:
     logging.basicConfig(stream=sys.stdout, level=level, format="%(message)s")
+    # httpx her isteğin adresini INFO'da yazar; Telegram bot token'ı adreste gittiği için kapalı.
+    for name in ("httpx", "httpcore"):
+        logging.getLogger(name).setLevel(logging.WARNING)
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,

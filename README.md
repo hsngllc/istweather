@@ -14,7 +14,8 @@ Tek doğru kaynak: [istanbul-hava-backend-spec.md](istanbul-hava-backend-spec.md
 | Faz | Durum |
 |---|---|
 | 0. Keşif | Tamamlandı (2026-11-01) |
-| 1. İskelet | `docker compose up` yerelde doğrulandı (2026-11-02); CI için GitHub deposu bekleniyor |
+| 1. İskelet | Tamamlandı (2026-11-02): `docker compose up` ve CI yeşil |
+| 2. Gözlem ingest | Sürüyor: canlı METAR (AWC) 2026-11-02 06:10 UTC'den beri toplanıyor; 48 saatlik kabul süresi işliyor |
 | UKMO geçmiş çıkarımı | Tamamlandı: 2.929 çalıştırma, 2024-10-30T18Z → 2026-11-01T18Z (spec §5.2.5); veritabanına yükleme sürüyor |
 
 ## Mimari özet
@@ -61,6 +62,23 @@ py -3.12 -m venv .venv
 
 Veritabanı entegrasyon testleri `HAVA_DATABASE_URL` tanımlı değilse atlanır; CI'da TimescaleDB servis
 konteyneriyle çalışır.
+
+## Gözlemler (METAR)
+
+- **Canlı:** worker 5 dakikada bir AWC'den son 3 saatin METAR'larını alır (LTFM, LTFJ, LTBA), yazar
+  ve QC uygular. Kaynak tazeliği 5 dakikada bir denetlenir; bir istasyonun son gözlemi 90 dakikadan
+  eskiyse veya AWC 30 dakikadır yanıt vermiyorsa bildirim gider, düzelince tekrar gider.
+- **Geçmiş:** IEM arşivinden; her gece son 3 günün boşlukları da IEM'den doldurulur.
+- Değerler ham METAR'dan kendi ayrıştırıcımızla çözülür
+  ([ADR-0004](docs/decisions/0004-metar-ham-metinden-ayristirma.md)); QC kuralları [docs/qc.md](docs/qc.md).
+- Bildirim kanalları `.env`'de (Telegram ve/veya e-posta); ayarlanmamışsa bildirim yalnız loga yazılır.
+
+```
+# geçmiş METAR (idempotent; var olan kayıtlara dokunmaz)
+docker compose run --rm --no-deps worker python -m hava.ingest.obs.iem --since 2024-01-01
+# QC raporu
+docker compose run --rm --no-deps worker python -m hava.qc.report --since 2024-01-01
+```
 
 ## UKMO geçmiş nokta çıkarımı
 
