@@ -7,6 +7,8 @@ x-app: &app
   build: .
   image: hava-app:dev
   env_file: .env
+  # Docker Desktop açılınca (ör. bilgisayar yeniden başlayınca) servisler kendiliğinden kalkar.
+  restart: unless-stopped
   environment:
     HAVA_DB_HOST: db
     # Windows bind mount'larında dosya olayları konteynere ulaşmaz; --reload yoklamayla çalışır.
@@ -23,6 +25,7 @@ services:
   db:
     image: timescale/timescaledb:2.30.2-pg17
     env_file: .env
+    restart: unless-stopped
     volumes:
       - db_data:/var/lib/postgresql/data
     ports:
