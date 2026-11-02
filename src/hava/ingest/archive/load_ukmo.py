@@ -187,6 +187,16 @@ _UPDATE_COLS = [
     for c in PointForecast.__table__.columns
     if c.name not in ("model_id", "init_time", "point_id", "valid_time")
 ]
+# PostgreSQL protokolü bir sorguda en fazla 65535 bağlı parametreye izin verir.
+_MAX_PARAMS = 65535
+
+
+def batches(rows: list[dict[str, Any]], batch: int) -> list[list[dict[str, Any]]]:
+    """Satırları, çok satırlı INSERT'in parametre sınırını aşmayacak paketlere böler."""
+    if not rows:
+        return []
+    size = max(1, min(batch, _MAX_PARAMS // len(rows[0])))
+    return [rows[i : i + size] for i in range(0, len(rows), size)]
 
 
 def load_run(
@@ -195,7 +205,7 @@ def load_run(
     point_ids: dict[str, int],
     run_path: Path,
     stencil_dir: Path,
-    batch: int = 5000,
+    batch: int = 2500,
 ) -> int:
     table = pq.read_table(run_path)
     fp = (table.schema.metadata or {}).get(b"stencil_fingerprint", b"").decode()
@@ -206,8 +216,8 @@ def load_run(
         pid = point_ids.get(rec.pop("point_key"))
         if pid is not None:
             rows.append({"model_id": model_id, "point_id": pid, **rec})
-    for i in range(0, len(rows), batch):
-        stmt = insert(PointForecast).values(rows[i : i + batch])
+    for chunk in batches(rows, batch):
+        stmt = insert(PointForecast).values(chunk)
         session.execute(
             stmt.on_conflict_do_update(
                 constraint="pk_point_forecasts",
@@ -242,7 +252,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     runs = sorted((base / "runs").glob("*.parquet"))
     with session_scope() as session:
         model_id = session.execute(select(Model.id).where(Model.code == MODEL_CODE)).scalar_one()
-        point_ids = dict(session.execute(select(Point.point_key, Point.id)).tuples().all())
+        point_ids = {key: pid for key, pid in session.execute(select(Point.point_key, Point.id))}
         loaded = set(
             session.execute(
                 select(ModelRun.init_time).where(

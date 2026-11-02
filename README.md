@@ -14,8 +14,8 @@ Tek doğru kaynak: [istanbul-hava-backend-spec.md](istanbul-hava-backend-spec.md
 | Faz | Durum |
 |---|---|
 | 0. Keşif | Tamamlandı (2026-11-01) |
-| 1. İskelet | Kod hazır; Docker ile doğrulama bekliyor (aşağıya bakın) |
-| UKMO geçmiş çıkarımı | Faz 0 sonrası başlatıldı (spec §5.2.5), Windows'ta arka planda çalışıyor |
+| 1. İskelet | `docker compose up` yerelde doğrulandı (2026-11-02); CI için GitHub deposu bekleniyor |
+| UKMO geçmiş çıkarımı | Tamamlandı: 2.929 çalıştırma, 2024-10-30T18Z → 2026-11-01T18Z (spec §5.2.5); veritabanına yükleme sürüyor |
 
 ## Mimari özet
 
@@ -32,19 +32,18 @@ konteynerlere yalnız kaynak kod bind mount edilir. Repo `C:\istweather` altınd
 
 ## Kurulum (geliştirme, Windows)
 
-1. **Docker Desktop**'ı (WSL2 backend) kurun. Bu makinede henüz kurulu değil; Faz 1'in
-   `docker compose up` kabulü için gerekli.
+1. **Docker Desktop**'ı (WSL2 backend, kullanıcı başına kurulum yeterli) kurun.
 2. Ortam dosyası:
    ```
    copy .env.example .env
    ```
    `.env` içinde en az `POSTGRES_PASSWORD`'ü doldurun. `.env` git'e girmez; anahtarları başka yerde
-   paylaşmayın.
+   paylaşmayın. 8000 portunu başka bir program kullanıyorsa `HAVA_API_PORT`'u değiştirin.
 3. Başlatın:
    ```
    docker compose up --build
    ```
-4. Kontrol:
+4. Kontrol (port `HAVA_API_PORT`, varsayılan 8000):
    - Sağlık: http://127.0.0.1:8000/api/v1/health
    - OpenAPI: http://127.0.0.1:8000/api/v1/docs
 
@@ -63,20 +62,22 @@ py -3.12 -m venv .venv
 Veritabanı entegrasyon testleri `HAVA_DATABASE_URL` tanımlı değilse atlanır; CI'da TimescaleDB servis
 konteyneriyle çalışır.
 
-## UKMO geçmiş nokta çıkarımı (geçici, Windows)
+## UKMO geçmiş nokta çıkarımı
 
 UK Met Office Global arşivi AWS'te 2 yıllık kayan penceredir; her gün en eski gün silinir. Bu yüzden
-39 ilçe + 3 METAR noktası için nokta çıkarımı Faz 4'ü beklemeden başlatıldı. Veri **yalnız iç
-doğrulama** içindir (CC BY-SA). Docker kurulana kadar yerel Python ile çalışır ve git dışı
-`.data\ukmo_global\` altına yazar; iş kaldığı yerden devam eder.
+39 ilçe + 3 METAR noktası için nokta çıkarımı Faz 4'ü beklemeden başlatıldı ve 2026-11-02'de
+tamamlandı. Veri **yalnız iç doğrulama** içindir (CC BY-SA). Çıktı `parquet_data` volume'unda
+(`/data/parquet/ukmo_global`); iş kaldığı yerden devam eder, yüklenmiş çalıştırmalar atlanır.
 
 ```
-powershell -ExecutionPolicy Bypass -File scripts\ukmo-backfill.ps1          # başlat
-powershell -ExecutionPolicy Bypass -File scripts\ukmo-backfill.ps1 -Stop    # durdur
+# yeni çalıştırmaları çıkar (bekleyen yoksa hemen biter)
+docker compose run --rm --no-deps worker python -m hava.ingest.archive.ukmo --out /data/parquet/ukmo_global
+# veritabanına yükle
+docker compose run --rm --no-deps worker python -m hava.ingest.archive.load_ukmo
 ```
 
-İlerleme: `.data\ukmo_global\backfill.log` ve çalıştırma başına `manifest\*.json`. Veritabanına
-yükleme: `python -m hava.ingest.archive.load_ukmo --dir <parquet dizini>`.
+Docker olmadan yedek yol (Windows, `.data\ukmo_global\`):
+`powershell -ExecutionPolicy Bypass -File scripts\ukmo-backfill.ps1 [-Stop]`.
 
 ## Depo yapısı
 

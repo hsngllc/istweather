@@ -38,7 +38,9 @@ geçerlidir (ör. model verisi Open-Meteo'dan değil, ham kaynaklardan gelir).
 - Kalite: `ruff check .`, `ruff format --check .`, `mypy`, `pytest`
 - Docker: `docker compose up --build` (önce `.env`); üretim: `-f docker-compose.yml -f docker-compose.prod.yml`
 - Migration: `alembic revision -m "..."` (elle), `alembic upgrade head`; modeller değişince yeni migration.
-- UKMO backfill (geçici, Windows): `powershell -ExecutionPolicy Bypass -File scripts\ukmo-backfill.ps1 [-Stop]`
+- UKMO çıkarımı/yükleme: `docker compose run --rm --no-deps worker python -m hava.ingest.archive.ukmo --out /data/parquet/ukmo_global`, ardından `... -m hava.ingest.archive.load_ukmo`
+- Windows'ta: API dış portu `.env`'de `HAVA_API_PORT` (8000 başka programda). Git Bash'ten `docker compose exec` ile
+  `/data/...` yolu verirken `MSYS_NO_PATHCONV=1`; PowerShell 5.1 tırnaklı argümanları bozduğu için `psql` komutlarını Bash'ten ver.
 
 ## Commit
 Küçük ve açıklayıcı commit'ler. `.env` ve veri dosyaları (GRIB, NetCDF, Parquet, `.data/`) git'e girmez.

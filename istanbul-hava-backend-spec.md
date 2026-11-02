@@ -90,7 +90,7 @@ Gelir modeli: **sadece reklam**. Kullanıcı hesabı yok. Site ticari olduğu i�
 - Veritabanı, GRIB/NetCDF ve Parquet verileri **Docker named volume**'larda durur (`db_data`, `grib_data`, `parquet_data`); repo klasörüne veri yazılmaz.
 - Konteynerlere yalnızca kaynak kod bind mount edilir (`src/`, `alembic/`, `config/`, `tests/`).
 - `.gitattributes` ile tüm metin dosyalarının satır sonu LF'ye sabitlenir.
-- İstisna (geçici): Docker Desktop kurulana kadar UKMO geçmiş çıkarımı Windows'ta yerel Python ile çalışır ve git dışı `.data/` klasörüne yazar; Docker kurulunca `parquet_data` volume'una taşınır. Bu iş eccodes kullanmaz (NetCDF/HDF5).
+- İstisna (geçici, sona erdi): Docker Desktop kurulana kadar UKMO geçmiş çıkarımı Windows'ta yerel Python ile çalıştı ve git dışı `.data/` klasörüne yazdı. Docker 2026-11-02'de kuruldu; çıktı `parquet_data` volume'una taşındı ve çıkarıcı artık konteynerde çalışıyor (Linux çıktısı Windows çıktısıyla birebir aynı).
 
 ## 5. Veri kaynakları
 
@@ -406,9 +406,9 @@ Uç noktalar (taslak):
 - MGM resmi uyarılarının da gösterilip gösterilmeyeceği
 - MGM gözlem verisi: yazılı izin veya MEVBİS başvurusu (proje sahibi yürütecek; sonuç gelene kadar MGM beklemede)
 - TIGGE (ECMWF Data Store) ve Hugging Face hesapları (proje sahibi açacak; anahtarlar yalnızca `.env`'e girer, sohbette paylaşılmaz)
-- Docker Desktop kurulumu (geliştirme makinesinde henüz yok; Faz 1 kabulü için gerekli)
+- GitHub deposu (CI için; Faz 1 kabulünün "CI yeşil" yarısı buna bağlı)
 
-Kapanan konu: WIS2'de Türkiye verisi yok (Faz 0); ek gözlem kaynağı olarak METAR + IEM seçildi, İBB açık verisi incelendi (`docs/data-sources.md` §4.4).
+Kapanan konular: WIS2'de Türkiye verisi yok (Faz 0); ek gözlem kaynağı olarak METAR + IEM seçildi, İBB açık verisi incelendi (`docs/data-sources.md` §4.4). Docker Desktop geliştirme makinesine kuruldu (2026-11-02).
 
 ## 17. Claude Code için çalışma kuralları
 

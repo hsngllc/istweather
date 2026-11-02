@@ -37,7 +37,7 @@ def seed_region(session: Session, path: str | Path) -> dict[str, int]:
                 set_={"name": stmt.excluded.name, "region": stmt.excluded.region},
             )
         )
-    district_ids = dict(session.execute(select(District.slug, District.id)).tuples().all())
+    district_ids = {slug: did for slug, did in session.execute(select(District.slug, District.id))}
 
     for st in raw.get("stations", []):
         values = {
@@ -60,7 +60,7 @@ def seed_region(session: Session, path: str | Path) -> dict[str, int]:
         f"{src}:{ext}": sid
         for src, ext, sid in session.execute(
             select(Station.source, Station.external_id, Station.id)
-        ).tuples()
+        )
     }
 
     points: list[dict[str, Any]] = []

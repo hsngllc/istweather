@@ -20,4 +20,7 @@ Geliştirme makinesi Windows; Docker Desktop henüz kurulu değil.
 ## Sonuçlar
 - Veri yoğun G/Ç Windows ↔ Linux sınırını geçmez; kod düzenleme Windows'ta kalır.
 - Geçici istisna: UKMO geçmiş çıkarımı Docker kurulana kadar Windows'ta yerel Python ile `.data/`
-  altına yazar (bkz. ADR-0002); Docker kurulunca `parquet_data` volume'una taşınır.
+  altına yazdı (bkz. ADR-0002). 2026-11-02'de Docker kuruldu, veri `parquet_data` volume'una
+  taşındı; istisna sona erdi.
+- Windows'ta 8000 portu başka bir programdaysa API'nin dış portu `.env`'de `HAVA_API_PORT` ile
+  değiştirilir (konteyner içinde hep 8000).

@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 import numpy as np
 import pytest
 
-from hava.ingest.archive.load_ukmo import inner_weights, transform_run
+from hava.ingest.archive.load_ukmo import batches, inner_weights, transform_run
 from hava.ingest.archive.ukmo import FileRef, _points_table, build_stencil
 from hava.region import Point
 
@@ -78,3 +78,12 @@ def test_wind_direction_bilinear_column_is_empty() -> None:
     table, _ = _sample_run()
     rows = [r for r in table.to_pylist() if r["param"] == "wind_direction_at_10m"]
     assert rows and all(r["bilinear"] is None or np.isnan(r["bilinear"]) for r in rows)
+
+
+def test_batches_respect_postgres_parameter_limit() -> None:
+    # 7 günlük bir çalıştırma ~3700 satır × 22 sütun; tek pakette 65535 parametreyi aşar.
+    rows = [{f"c{j}": j for j in range(22)} for _ in range(3738)]
+    chunks = batches(rows, batch=5000)
+    assert sum(len(c) for c in chunks) == len(rows)
+    assert all(len(c) * 22 <= 65535 for c in chunks)
+    assert batches([], batch=5000) == []
