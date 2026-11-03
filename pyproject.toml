@@ -24,6 +24,8 @@ dependencies = [
     "pydantic>=2.7",
     "pydantic-settings>=2.4",
     "pyyaml>=6",
+    # ICON üçgen ızgarasında nokta çıkarımı (Delaunay, KD-ağacı)
+    "scipy>=1.13",
     "sqlalchemy>=2.0.30",
     "structlog>=24",
     "uvicorn[standard]>=0.30",
@@ -61,7 +63,7 @@ mypy_path = "src"
 packages = ["hava"]
 
 [[tool.mypy.overrides]]
-module = ["h5py.*", "h5netcdf.*", "pyarrow.*", "apscheduler.*", "eccodes.*", "gribapi.*"]
+module = ["h5py.*", "h5netcdf.*", "pyarrow.*", "apscheduler.*", "eccodes.*", "gribapi.*", "scipy.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

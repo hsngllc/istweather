@@ -1,0 +1,115 @@
+"""Bir model çalıştırmasını uçtan uca işler (tüm adaptörler için ortak).
+
+``model_runs`` durumu: downloading → extracted → loaded | failed (spec §4). Adaptör yalnız
+kaynağından alanları toplayan bir işlev verir; kırpılmış dosya, nokta satırları ve durum burada.
+"""
+
+from __future__ import annotations
+
+import time
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any
+
+import structlog
+
+from hava.db.session import session_scope
+from hava.ingest.models import runs
+from hava.ingest.models.pipeline import (
+    ModelSpec,
+    RunCollector,
+    extract_rows,
+    store_rows,
+    write_netcdf,
+)
+from hava.region import Region
+from hava.settings import Settings
+
+log = structlog.get_logger()
+
+Collect = Callable[[], tuple[RunCollector, dict[str, Any]]]
+
+
+@dataclass(frozen=True)
+class Source:
+    spec: ModelSpec
+    extractor: str  # çıkarıcı sürümü (izlenebilirlik)
+    source: str  # kaynak adresi
+    resolution: str
+    license: str
+
+
+def candidate_runs(now: datetime, lookback_hours: int, cycle_h: int = 6) -> list[datetime]:
+    """Bakış penceresindeki çalıştırmalar (her ``cycle_h`` saatte bir), eskiden yeniye."""
+    last = now.replace(minute=0, second=0, microsecond=0)
+    last -= timedelta(hours=last.hour % cycle_h)
+    n = lookback_hours // cycle_h + 1
+    return [last - timedelta(hours=cycle_h * k) for k in range(n)][::-1]
+
+
+def pending(code: str, init: datetime) -> bool:
+    with session_scope() as session:
+        return runs.should_process(runs.get_run(session, runs.model_id(session, code), init))
+
+
+def process_run(
+    src: Source, settings: Settings, region: Region, init: datetime, collect: Collect
+) -> dict[str, Any]:
+    code = src.spec.code
+    started = time.monotonic()
+    with session_scope() as session:
+        mid = runs.model_id(session, code)
+        run = runs.get_run(session, mid, init)
+        attempts = int(((run.files if run else None) or {}).get("attempts", 0)) + 1
+        files = {"attempts": attempts, "source": src.source, "resolution": src.resolution}
+        runs.set_status(session, mid, init, "downloading", files=files)
+        session.commit()
+    try:
+        col, stats = collect()
+        rows = extract_rows(col, src.spec, region.points, init)
+        path = Path(settings.grib_dir) / code / f"{init:%Y%m%dT%H}Z.nc"
+        write_netcdf(
+            col,
+            path,
+            {
+                "model": code,
+                "init_time": init.isoformat(),
+                "source": src.source,
+                "resolution": src.resolution,
+                "license": src.license,
+            },
+        )
+        with session_scope() as session:
+            runs.set_status(session, mid, init, "extracted", files={"crop_file": str(path)})
+            n = store_rows(session, mid, init, rows)
+            runs.set_status(
+                session,
+                mid,
+                init,
+                "loaded",
+                files={
+                    "extractor": src.extractor,
+                    "steps": len(col.steps),
+                    "rows": n,
+                    **stats,
+                    "seconds": round(time.monotonic() - started, 1),
+                },
+            )
+            session.commit()
+    except Exception as exc:
+        with session_scope() as session:
+            runs.set_status(
+                session, mid, init, "failed", error=f"{type(exc).__name__}: {exc}"[:500]
+            )
+            session.commit()
+        raise
+    summary = {
+        "run": init.isoformat(),
+        "rows": n,
+        **stats,
+        "seconds": round(time.monotonic() - started, 1),
+    }
+    log.info("model_run_loaded", model=code, **summary)
+    return summary

@@ -1,7 +1,9 @@
-"""Düzenli enlem-boylam ızgarası ve bölge kırpma.
+"""Model ızgaraları ve bölge kırpma.
 
-İçeride ızgaralar her zaman güneyden kuzeye (enlem artan) ve batıdan doğuya (boylam artan) tutulur;
-kaynak dosyanın tarama yönü ``Crop.apply`` içinde düzeltilir.
+- Düzenli enlem-boylam: içeride her zaman güneyden kuzeye (enlem artan) ve batıdan doğuya (boylam
+  artan) tutulur; kaynak dosyanın tarama yönü ``Crop.apply`` içinde düzeltilir.
+- Yapısal olmayan (ör. ICON üçgen ızgarası): hücre merkezleri ``CLAT/CLON``'dan; kutudaki hücreler
+  indisleriyle seçilir (``CellCrop``).
 """
 
 from __future__ import annotations
@@ -83,3 +85,53 @@ def crop_grid(lat_native: FloatArray, lon_native: FloatArray, bbox: BBox) -> Cro
         raise ValueError("kutu ızgaranın dışına taşıyor")
     sub = RegularGrid(lat[j0:j1].copy(), lon_native[i0:i1].copy())
     return Crop((len(lat), len(lon_native)), reversed_, slice(j0, j1), slice(i0, i1), sub)
+
+
+@dataclass(frozen=True)
+class UnstructuredGrid:
+    lat: FloatArray  # (N,) kırpılmış hücre merkezleri
+    lon: FloatArray  # (N,) −180…180
+    grid_id: str  # kaynak ızgara kimliği (ICON: GRIB ``uuidOfHGrid``)
+
+    @property
+    def shape(self) -> tuple[int]:
+        return (len(self.lat),)
+
+    def fingerprint(self) -> str:
+        desc = f"{self.grid_id}:{len(self.lat)}"
+        return hashlib.sha1(desc.encode()).hexdigest()[:12]
+
+
+@dataclass(frozen=True)
+class CellCrop:
+    """Yapısal olmayan ızgaradan kutudaki hücrelerin alınması."""
+
+    source_size: int  # dosyadaki hücre sayısı
+    cells: npt.NDArray[np.intp]  # kaynak dizideki indisler
+    grid: UnstructuredGrid
+
+    def apply(self, values: npt.NDArray[Any]) -> FloatArray:
+        v = np.asarray(values, dtype=np.float64).reshape(-1)
+        if v.size != self.source_size:
+            raise ValueError(f"hücre sayısı {v.size} != {self.source_size}")
+        return np.ascontiguousarray(v[self.cells])
+
+
+def crop_cells(lat: FloatArray, lon: FloatArray, bbox: BBox, grid_id: str) -> CellCrop:
+    """Hücre merkezleri (derece) kutunun içinde kalan hücreleri seçer."""
+    lat = np.asarray(lat, dtype=np.float64).reshape(-1)
+    lon = np.asarray(lon, dtype=np.float64).reshape(-1)
+    if lat.shape != lon.shape:
+        raise ValueError("CLAT/CLON boyutları farklı")
+    lon = np.where(lon >= 180.0, lon - 360.0, lon)
+    inside = (
+        (lat >= bbox.lat_min)
+        & (lat <= bbox.lat_max)
+        & (lon >= bbox.lon_min)
+        & (lon <= bbox.lon_max)
+    )
+    cells = np.flatnonzero(inside).astype(np.intp)
+    if cells.size < 3:
+        raise ValueError("kutuda yeterli hücre yok")
+    grid = UnstructuredGrid(lat[cells].copy(), lon[cells].copy(), grid_id)
+    return CellCrop(lat.size, cells, grid)

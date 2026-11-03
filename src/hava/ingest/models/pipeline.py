@@ -19,6 +19,8 @@ ptype          yağış tipi kodu (kategorik)                  —
 lsm, orog      kara oranı (0–1) / model arazi yüksekliği     —, m
 =============  ==========================================  =========
 
+Yapısal olmayan ızgarada (ICON) adaptör önce ``set_cells`` ile hücre merkezlerini verir.
+
 Sonra noktalara çevirir (kara-deniz maskeli, sıcaklıkta yükseklik düzeltmeli), birikimli
 değişkenleri adım aralığına böler, kırpılmış alanları NetCDF olarak saklar ve
 ``point_forecasts``'a yazar.
@@ -43,7 +45,16 @@ from hava.db.bulk import upsert
 from hava.db.models import Point as PointRow
 from hava.db.models import PointForecast
 from hava.ingest.models.grib import GribField
-from hava.processing.grid import BBox, Crop, FloatArray, crop_grid
+from hava.processing.grid import (
+    BBox,
+    CellCrop,
+    Crop,
+    FloatArray,
+    RegularGrid,
+    UnstructuredGrid,
+    crop_cells,
+    crop_grid,
+)
 from hava.processing.points import build_weights, lapse_correction
 from hava.processing.thermo import relative_humidity
 from hava.region import Point
@@ -71,12 +82,30 @@ class RunCollector:
 
     def __init__(self, bbox: BBox) -> None:
         self.bbox = bbox
-        self.crop: Crop | None = None
+        self.crop: Crop | CellCrop | None = None
         self._native: tuple[int, int, float, float, float, float] | None = None
         self.fields: dict[str, dict[float, FloatArray]] = defaultdict(dict)
         self.static: dict[str, FloatArray] = {}
 
+    def set_cells(self, lat: FloatArray, lon: FloatArray, grid_id: str) -> None:
+        """Yapısal olmayan ızgaranın hücre merkezleri (derece); alanlardan önce verilir."""
+        if self.crop is not None:
+            raise GridChanged("ızgara zaten tanımlı")
+        self.crop = crop_cells(lat, lon, self.bbox, grid_id)
+
     def _cropped(self, f: GribField) -> FloatArray:
+        if f.values.ndim == 1:
+            if not isinstance(self.crop, CellCrop):
+                raise GridChanged(f"{f.short_name}: hücre merkezleri (set_cells) verilmedi")
+            grid_id = f.meta.get("grid_id")
+            if grid_id and grid_id != self.crop.grid.grid_id:
+                raise GridChanged(f"{f.short_name}: ızgara {grid_id} != {self.crop.grid.grid_id}")
+            n = self.crop.source_size
+            if f.values.size != n:
+                raise GridChanged(f"{f.short_name}: {f.values.size} hücre != {n}")
+            return self.crop.apply(f.values)
+        if isinstance(self.crop, CellCrop):
+            raise GridChanged(f"{f.short_name}: düzenli ızgara, çalıştırma üçgen ızgarada")
         sig = (len(f.lat), len(f.lon), f.lat[0], f.lat[-1], f.lon[0], f.lon[-1])
         if self.crop is None:
             self.crop = crop_grid(f.lat, f.lon, self.bbox)
@@ -101,12 +130,13 @@ def _num(x: float) -> float | None:
 
 
 def extraction_label(col: RunCollector) -> str:
-    parts = ["bilinear"]
+    base = "barycentric" if isinstance(col.crop, CellCrop) else "bilinear"
+    parts = [base]
     if "lsm" in col.static:
         parts.append("lsm")
     if "orog" in col.static:
         parts.append("lapse")
-    return "_".join(parts) if len(parts) > 1 else "bilinear_unmasked"
+    return "_".join(parts) if len(parts) > 1 else f"{base}_unmasked"
 
 
 def extract_rows(
@@ -162,6 +192,8 @@ def extract_rows(
             if "conv_acc" in interval:
                 extra["conv_precip_mm"] = _num(interval["conv_acc"][k])
             code = None if ptype is None or not np.isfinite(ptype[k]) else round(float(ptype[k]))
+            if code is not None:
+                extra["ptype_code"] = code
             rows.append(
                 {
                     "point_id": p.point_id,
@@ -197,24 +229,33 @@ def write_netcdf(col: RunCollector, path: Path, attrs: dict[str, Any]) -> None:
     """Kırpılmış alanları atomik olarak NetCDF-4'e yazar (spec §5.1: 30 gün saklanır)."""
     if col.crop is None:
         return
-    grid = col.crop.grid
+    grid: RegularGrid | UnstructuredGrid = col.crop.grid
     steps = col.steps
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
     with h5netcdf.File(tmp, "w") as f:
-        f.dimensions = {"step": len(steps), "lat": len(grid.lat), "lon": len(grid.lon)}
+        space: tuple[str, ...]
+        if isinstance(grid, UnstructuredGrid):
+            space = ("cell",)
+            f.dimensions = {"step": len(steps), "cell": len(grid.lat)}
+            f.create_variable("lat", ("cell",), "f8", data=grid.lat)
+            f.create_variable("lon", ("cell",), "f8", data=grid.lon)
+            f.attrs["grid_id"] = grid.grid_id
+        else:
+            space = ("lat", "lon")
+            f.dimensions = {"step": len(steps), "lat": len(grid.lat), "lon": len(grid.lon)}
+            f.create_variable("lat", ("lat",), "f8", data=grid.lat)
+            f.create_variable("lon", ("lon",), "f8", data=grid.lon)
         f.create_variable("step", ("step",), "f4", data=np.array(steps, dtype=np.float32))
         f.variables["step"].attrs["units"] = "hours since init_time"
-        f.create_variable("lat", ("lat",), "f8", data=grid.lat)
-        f.create_variable("lon", ("lon",), "f8", data=grid.lon)
         for var, by_step in sorted(col.fields.items()):
-            arr = np.full((len(steps), len(grid.lat), len(grid.lon)), np.nan, dtype=np.float32)
+            arr = np.full((len(steps), *grid.shape), np.nan, dtype=np.float32)
             for n, s in enumerate(steps):
                 if s in by_step:
                     arr[n] = by_step[s]
-            f.create_variable(var, ("step", "lat", "lon"), "f4", data=arr, compression="gzip")
+            f.create_variable(var, ("step", *space), "f4", data=arr, compression="gzip")
         for var, arr2 in sorted(col.static.items()):
-            f.create_variable(var, ("lat", "lon"), "f4", data=arr2.astype(np.float32))
+            f.create_variable(var, space, "f4", data=arr2.astype(np.float32))
         f.attrs.update({k: str(v) for k, v in attrs.items()})
     os.replace(tmp, path)
 

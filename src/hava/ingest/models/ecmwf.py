@@ -12,37 +12,26 @@ alınır. Hamle: 0–90 sa ``10fg`` (son 1 sa max), 93–144 sa ``10fg3`` (son 3
 from __future__ import annotations
 
 import json
-import time
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
-from pathlib import Path
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
-import structlog
 
-from hava.db.session import session_scope
 from hava.ingest.archive.http_range import get_with_retry
-from hava.ingest.models import runs
 from hava.ingest.models.grib import decode_message
-from hava.ingest.models.pipeline import (
-    ModelSpec,
-    RunCollector,
-    extract_rows,
-    store_rows,
-    write_netcdf,
-)
+from hava.ingest.models.pipeline import ModelSpec, RunCollector
+from hava.ingest.models.runner import Source, candidate_runs, pending, process_run
 from hava.processing.grid import BBox
 from hava.region import Region, load_region
 from hava.settings import Settings, get_settings
 
-log = structlog.get_logger()
-
 MODEL_CODE = "ecmwf_ifs"
 EXTRACTOR_VERSION = "ecmwf-ifs-1"
 RESOL = "0p1"
+LICENSE = "CC BY 4.0 + ECMWF Terms of Use"
 G = 9.80665
 # ECMWF ptype kodları (https://codes.ecmwf.int/grib/param-db/260015)
 PTYPE_NAMES = {
@@ -134,14 +123,6 @@ def select(
     return out
 
 
-def candidate_runs(now: datetime, lookback_hours: int) -> list[datetime]:
-    """Bakış penceresindeki 00/06/12/18 çalıştırmaları, eskiden yeniye."""
-    last = now.replace(minute=0, second=0, microsecond=0)
-    last -= timedelta(hours=last.hour % 6)
-    n = lookback_hours // 6 + 1
-    return [last - timedelta(hours=6 * k) for k in range(n)][::-1]
-
-
 def run_complete(client: httpx.Client, base: str, init: datetime, max_lead_h: int) -> bool:
     """Son adımın index'i yayımlandıysa çalıştırma tamamdır."""
     last = steps_for(init, max_lead_h)[-1]
@@ -183,67 +164,6 @@ def collect_run(
     return col, stats
 
 
-def process_run(
-    client: httpx.Client, settings: Settings, region: Region, init: datetime
-) -> dict[str, Any]:
-    started = time.monotonic()
-    with session_scope() as session:
-        mid = runs.model_id(session, MODEL_CODE)
-        run = runs.get_run(session, mid, init)
-        attempts = int(((run.files if run else None) or {}).get("attempts", 0)) + 1
-        files = {"attempts": attempts, "source": settings.ecmwf_base_url, "resolution": RESOL}
-        runs.set_status(session, mid, init, "downloading", files=files)
-        session.commit()
-    try:
-        col, stats = collect_run(client, settings, region, init)
-        rows = extract_rows(col, SPEC, region.points, init)
-        path = Path(settings.grib_dir) / MODEL_CODE / f"{init:%Y%m%dT%H}Z.nc"
-        write_netcdf(
-            col,
-            path,
-            {
-                "model": MODEL_CODE,
-                "init_time": init.isoformat(),
-                "source": settings.ecmwf_base_url,
-                "resolution": RESOL,
-                "license": "CC BY 4.0 + ECMWF Terms of Use",
-            },
-        )
-        with session_scope() as session:
-            runs.set_status(session, mid, init, "extracted", files={"crop_file": str(path)})
-            n = store_rows(session, mid, init, rows)
-            runs.set_status(
-                session,
-                mid,
-                init,
-                "loaded",
-                files={
-                    "extractor": EXTRACTOR_VERSION,
-                    "steps": len(col.steps),
-                    "rows": n,
-                    "messages": stats["messages"],
-                    "bytes": stats["bytes"],
-                    "seconds": round(time.monotonic() - started, 1),
-                },
-            )
-            session.commit()
-    except Exception as exc:
-        with session_scope() as session:
-            runs.set_status(
-                session, mid, init, "failed", error=f"{type(exc).__name__}: {exc}"[:500]
-            )
-            session.commit()
-        raise
-    summary = {
-        "run": init.isoformat(),
-        "rows": n,
-        **stats,
-        "seconds": round(time.monotonic() - started, 1),
-    }
-    log.info("model_run_loaded", model=MODEL_CODE, **summary)
-    return summary
-
-
 def collect(max_runs: int = 2) -> list[dict[str, Any]]:
     """Worker işi: tamamlanmış ve yüklenmemiş IFS çalıştırmalarını (eskiden yeniye) işler."""
     settings = get_settings()
@@ -251,13 +171,16 @@ def collect(max_runs: int = 2) -> list[dict[str, Any]]:
     done: list[dict[str, Any]] = []
     with httpx.Client(timeout=120.0, headers={"User-Agent": settings.http_user_agent}) as client:
         for init in candidate_runs(datetime.now(UTC), settings.model_lookback_hours):
-            with session_scope() as session:
-                run = runs.get_run(session, runs.model_id(session, MODEL_CODE), init)
-                if not runs.should_process(run):
-                    continue
+            if not pending(MODEL_CODE, init):
+                continue
             if not run_complete(client, settings.ecmwf_base_url, init, settings.model_max_lead_h):
                 continue
-            done.append(process_run(client, settings, region, init))
+            src = Source(SPEC, EXTRACTOR_VERSION, settings.ecmwf_base_url, RESOL, LICENSE)
+
+            def fetch(i: datetime = init) -> tuple[RunCollector, dict[str, Any]]:
+                return collect_run(client, settings, region, i)
+
+            done.append(process_run(src, settings, region, init, fetch))
             if len(done) >= max_runs:
                 break
     return done

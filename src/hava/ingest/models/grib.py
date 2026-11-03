@@ -1,7 +1,9 @@
-"""GRIB mesajlarını eccodes ile çözer (düzenli enlem-boylam ızgaraları).
+"""GRIB mesajlarını eccodes ile çözer.
 
-Boylamlar artan sıraya getirilir (gerekirse sütunlar döndürülür); enlemler dosya sırasında kalır,
-yön düzeltmesi kırpmada yapılır (``hava.processing.grid.Crop``).
+- Düzenli enlem-boylam: boylamlar artan sıraya getirilir (gerekirse sütunlar döndürülür); enlemler
+  dosya sırasında kalır, yön düzeltmesi kırpmada yapılır (``hava.processing.grid.Crop``).
+- Yapısal olmayan (ICON üçgen ızgarası): değerler tek boyutlu; koordinatlar mesajda yok, ayrı
+  ``CLAT/CLON`` alanlarından gelir. Izgara kimliği ``meta["grid_id"]`` (``uuidOfHGrid``).
 """
 
 from __future__ import annotations
@@ -28,9 +30,9 @@ class GribField:
     end_step_h: float
     step_range: str
     units: str
-    lat: FloatArray  # dosya sırasında (kuzeyden güneye olabilir)
-    lon: FloatArray  # artan
-    values: FloatArray  # (Nj, Ni), eksik değer NaN
+    lat: FloatArray  # dosya sırasında (kuzeyden güneye olabilir); yapısal olmayanda boş
+    lon: FloatArray  # artan; yapısal olmayanda boş
+    values: FloatArray  # (Nj, Ni) ya da yapısal olmayanda (N,); eksik değer NaN
     meta: dict[str, Any] = field(default_factory=dict)
 
 
@@ -61,10 +63,44 @@ def _get(h: Any, key: str, default: Any = None) -> Any:
         return default
 
 
+def _common(h: Any, lat: FloatArray, lon: FloatArray, values: FloatArray) -> GribField:
+    return GribField(
+        short_name=str(_get(h, "shortName")),
+        type_of_level=str(_get(h, "typeOfLevel")),
+        level=int(_get(h, "level", 0)),
+        end_step_h=float(_get(h, "endStep")),
+        step_range=str(_get(h, "stepRange")),
+        units=str(_get(h, "units")),
+        lat=lat,
+        lon=lon,
+        values=values,
+        meta={
+            "dataDate": _get(h, "dataDate"),
+            "dataTime": _get(h, "dataTime"),
+            "number": _get(h, "number"),
+            "packingType": _get(h, "packingType"),
+        },
+    )
+
+
+def _values(h: Any) -> FloatArray:
+    values = np.asarray(eccodes.codes_get_values(h), dtype=np.float64)
+    if int(_get(h, "bitmapPresent", 0)):
+        values[values == float(_get(h, "missingValue"))] = np.nan
+    return values
+
+
 def decode_message(data: bytes) -> GribField:
     h = eccodes.codes_new_from_message(data)
     try:
         grid_type = _get(h, "gridType")
+        eccodes.codes_set(h, "stepUnits", 1)  # adımlar saat cinsinden
+        if grid_type == "unstructured_grid":
+            empty = np.empty(0, dtype=np.float64)
+            f = _common(h, empty, empty, _values(h))
+            f.meta["grid_id"] = str(_get(h, "uuidOfHGrid"))
+            f.meta["grid_number"] = _get(h, "numberOfGridUsed")
+            return f
         if grid_type != "regular_ll":
             raise GribError(f"desteklenmeyen ızgara: {grid_type}")
         ni, nj = int(_get(h, "Ni")), int(_get(h, "Nj"))
@@ -74,11 +110,7 @@ def decode_message(data: bytes) -> GribField:
         di = float(_get(h, "iDirectionIncrementInDegrees"))
         if int(_get(h, "iScansNegatively", 0)) != 0:
             raise GribError("doğudan batıya taranan ızgara desteklenmiyor")
-        eccodes.codes_set(h, "stepUnits", 1)  # adımlar saat cinsinden
-        values = np.asarray(eccodes.codes_get_values(h), dtype=np.float64)
-        if int(_get(h, "bitmapPresent", 0)):
-            values[values == float(_get(h, "missingValue"))] = np.nan
-        values = values.reshape(nj, ni)
+        values = _values(h).reshape(nj, ni)
         lat = np.linspace(la1, la2, nj)
         lon = np.asarray(lo1 + di * np.arange(ni), dtype=np.float64)
         lon = np.where(lon >= 180.0, lon - 360.0, lon).astype(np.float64)
@@ -86,22 +118,6 @@ def decode_message(data: bytes) -> GribField:
             shift = int(np.argmin(lon))
             lon = np.roll(lon, -shift)
             values = np.roll(values, -shift, axis=1)
-        return GribField(
-            short_name=str(_get(h, "shortName")),
-            type_of_level=str(_get(h, "typeOfLevel")),
-            level=int(_get(h, "level", 0)),
-            end_step_h=float(_get(h, "endStep")),
-            step_range=str(_get(h, "stepRange")),
-            units=str(_get(h, "units")),
-            lat=lat,
-            lon=lon,
-            values=values,
-            meta={
-                "dataDate": _get(h, "dataDate"),
-                "dataTime": _get(h, "dataTime"),
-                "number": _get(h, "number"),
-                "packingType": _get(h, "packingType"),
-            },
-        )
+        return _common(h, lat, lon, values)
     finally:
         eccodes.codes_release(h)

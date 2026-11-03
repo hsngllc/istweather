@@ -107,3 +107,48 @@ def test_netcdf_contains_crop_and_metadata(tmp_path: Path) -> None:
         assert np.isnan(f["gust"][0]).all() and f["gust"][1, 0, 0] == pytest.approx(12.0)
         assert f.attrs["model"] == "synthetic"
         assert f["lsm"].shape == (len(f["lat"]), len(f["lon"]))
+
+
+def _cells_field(value: float, n: int, grid_id: str = "g1") -> GribField:
+    empty = np.empty(0)
+    return GribField(
+        "x", "surface", 0, 0.0, "0", "", empty, empty, np.full(n, value), {"grid_id": grid_id}
+    )
+
+
+def _unstructured_collector() -> tuple[RunCollector, int]:
+    lat, lon = np.meshgrid(np.arange(39.0, 43.5, 0.1), np.arange(26.0, 32.0, 0.1))
+    lon = lon + 0.05 * (np.round(lat * 10) % 2)
+    col = RunCollector(BBox(40.7, 41.7, 27.8, 30.0).expanded(0.5))
+    col.set_cells(lat.ravel(), lon.ravel(), "g1")
+    return col, lat.size
+
+
+def test_unstructured_fields_need_cells_and_matching_grid() -> None:
+    with pytest.raises(GridChanged):
+        RunCollector(BBox(40.7, 41.7, 27.8, 30.0)).add("t2m", 0, _cells_field(288.0, 10))
+    col, n = _unstructured_collector()
+    col.add("t2m", 0, _cells_field(288.15, n))
+    with pytest.raises(GridChanged):
+        col.add("t2m", 1, _cells_field(288.15, n, grid_id="g2"))
+    with pytest.raises(GridChanged):
+        col.add("t2m", 1, _cells_field(288.15, n - 1))
+    with pytest.raises(GridChanged):
+        col.add("t2m", 1, synthetic_field(288.15))  # düzenli ızgara karışamaz
+
+
+def test_unstructured_rows_and_netcdf(tmp_path: Path) -> None:
+    col, n = _unstructured_collector()
+    col.add_static("lsm", _cells_field(1.0, n))
+    for step in (0, 1):
+        col.add("t2m", step, _cells_field(288.15, n))
+        col.add("precip_acc", step, _cells_field(2.0 * step, n))
+    rows = extract_rows(col, SPEC, POINTS, INIT)
+    assert {r["extraction"] for r in rows} == {"barycentric_lsm"}
+    assert rows[-1]["precip_mm"] == pytest.approx(2.0) and rows[-1]["temp_c"] == pytest.approx(15.0)
+    path = tmp_path / "icon" / "20261102T00Z.nc"
+    write_netcdf(col, path, {"model": "synthetic"})
+    with h5netcdf.File(path, "r") as f:
+        cells = len(f["lat"])
+        assert f["t2m"].shape == (2, cells) and f["lsm"].shape == (cells,)
+        assert f.attrs["grid_id"] == "g1" and f["lon"].shape == (cells,)
