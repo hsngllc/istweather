@@ -261,6 +261,12 @@ Her dosya tek alan; `.idx` yok (gerek de yok). Sabit alanlar (`HSURF`, `FR_LAND`
 
 **Saklama/arşiv** ✅: Datamart 30 gün. **Resmî ücretsiz arşiv yok** (arşivden çekme saatlik 118 $). TIGGE'de GDPS 2021-06'dan, 0.25°, CC BY 4.0.
 
+**Faz 3 bulguları (2026-11-03 ✅; [ADR-0007](decisions/0007-eccc-amqp-bildirim.md))**
+- Kullanım politikası yeniden okundu: sistematik alımda AMQPS zorunlu, yeni veri için dizin listelemek yasak, `wget`/`curl` yalnız ad hoc. AMQPS `amqps://anonymous:anonymous@dd.weather.gc.ca:5671`, exchange `xpublic`, konu `v02.post.*.WXO-DD.model_gdps.15km.#` bağlanıp mesaj alınarak doğrulandı (⚠️ kaldırıldı); v02 gövdesi `<zaman> <taban adres> <göreli yol>`, taban adres `https://dd2.weather.gc.ca/` olabiliyor. Yönlendirme anahtarında dosya adı yok → değişken süzmesi istemcide.
+- Dosya adları (tek seferlik ad hoc liste): `AirTemp_AGL-2m`, `DewPoint_AGL-2m`, `DewPointDepression_AGL-2m`, `RelativeHumidity_AGL-2m`, `WindU/WindV/WindSpeed/WindDir_AGL-10m`, `WindGust_AGL-10m` (+`-Max`/`-Min`), `Pressure_MSL`, `TotalCloudCover_Sfc`, `Precip-Accum_Sfc` (+`Accum1h/3h/6h`), `ConvectivePrecip-Accum_Sfc`, `Snow-Accum_Sfc`, `PrecipType-Instant_Sfc`, `PrecipRate_Sfc`, `AirTemp_IsbL-0850`; 0. adımda ayrıca `GeopotentialHeight_Sfc`, `LandWaterProportion_Sfc`, `SeaWaterTemp_Sfc`. Görüş ve alçak bulut yok.
+- Başlıklar: ızgara 2400×1201, güneyden kuzeye, boylam 0..360, `grid_jpeg`; `Precip-Accum`/`ConvectivePrecip`/`Snow-Accum` `stepType=accum` `0-N` (kg m⁻²; `Precip-Accum` ve bulut eccodes'ta "unknown", bulut %); 0. adımda `Precip-Accum` 404. `WindGust_AGL-10m` `i10fg` anlık. **850 hPa dosyaları saatlik adımlarda yok** (yalnız 3 saatin katları). `PrecipType-Instant` her hücrede dolu (Sahra'da 6; kuru hücrelerin %100'ünde > 0) → kullanılmıyor.
+- Dosya boyutları 0,7–3,8 MB; çalıştırma başına seçilen ~1.250 dosya ≈ 2 GB.
+
 ### 2.8 Değişken matrisi — deterministik modeller
 
 ✅ = gerçek dosya/index/dizin listesinden. Tarihli notlar, parametrenin açık veriye eklendiği tarih.

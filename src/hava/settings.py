@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     ecmwf_base_url: str = "https://data.ecmwf.int/forecasts"
     dwd_base_url: str = "https://opendata.dwd.de/weather/nwp/v1/m"  # yalnız ~24 sa saklar
     gfs_base_url: str = "https://noaa-gfs-bdp-pds.s3.amazonaws.com"  # AWS NODD, anonim
+    eccc_amqp_enabled: bool = True  # GDPS duyuruları için AMQPS dinleyicisi (ADR-0007)
     model_max_lead_h: int = 168
     model_crop_margin_deg: float = 1.0
     model_download_workers: int = 8

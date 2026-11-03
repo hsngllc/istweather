@@ -159,6 +159,9 @@ models:
     internal_only: false
     meta:
       version_breaks: ["2026-05-26"]
+      gust_definition: "WindGust_AGL-10m (i10fg): anlık"
+      access: "AMQPS duyuruları (ADR-0007); dizin listelenmez"
+      stale_hours: 24
   - code: eccc_geps
     provider: ECCC
     kind: ensemble

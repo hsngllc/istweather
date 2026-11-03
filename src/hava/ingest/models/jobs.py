@@ -10,7 +10,7 @@ from typing import Any
 import structlog
 
 from hava.db.session import session_scope
-from hava.ingest.models import arpege, ecmwf, gefs, gfs, icon, ukmo
+from hava.ingest.models import arpege, ecmwf, gdps, gefs, gfs, icon, ukmo
 from hava.ingest.models.pipeline import prune_files
 from hava.ops.health import record_error, record_success
 from hava.settings import get_settings
@@ -25,6 +25,7 @@ ADAPTERS: dict[str, Callable[[], list[dict[str, Any]]]] = {
     icon.ICON.code: icon.collect_icon,
     icon.ICON_EU.code: icon.collect_icon_eu,
     arpege.MODEL_CODE: arpege.collect,
+    gdps.MODEL_CODE: gdps.collect,  # duyurular AMQPS dinleyicisinden (ADR-0007)
     ukmo.MODEL_CODE: ukmo.collect,  # yalnız iç doğrulama (CC BY-SA)
     # Ensemble'lar (ADR-0006): 00/12z
     ecmwf.IFS_ENS.code: ecmwf.collect_ifs_ens,

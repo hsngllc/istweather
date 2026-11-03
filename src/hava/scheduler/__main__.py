@@ -20,12 +20,14 @@ from sqlalchemy.dialects.postgresql import insert
 
 from hava.db.models import SourceHealth
 from hava.db.session import session_scope
+from hava.ingest.models.gdps import Listener, spool_dir
 from hava.ingest.models.jobs import ADAPTERS, collect_model, prune_grib
 from hava.ingest.obs.iem import fill_recent
 from hava.ingest.obs.jobs import collect_metar
 from hava.ops.health import check_sources
 from hava.ops.logging import configure_logging
 from hava.ops.notify import notify
+from hava.settings import get_settings
 
 log = structlog.get_logger()
 FAILURE_THRESHOLD = 3
@@ -101,6 +103,9 @@ def build_scheduler() -> BlockingScheduler:
 
 def main() -> int:
     configure_logging()
+    settings = get_settings()
+    if settings.eccc_amqp_enabled:
+        Listener(spool_dir(settings), settings.http_user_agent).start()
     scheduler = build_scheduler()
     log.info("worker_start", jobs=[j.id for j in scheduler.get_jobs()])
     try:
