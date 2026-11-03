@@ -15,7 +15,7 @@ Tek doğru kaynak: [istanbul-hava-backend-spec.md](istanbul-hava-backend-spec.md
 |---|---|
 | 0. Keşif | Tamamlandı (2026-11-01) |
 | 1. İskelet | Tamamlandı (2026-11-02): `docker compose up` ve CI yeşil |
-| 2. Gözlem ingest | Sürüyor: canlı METAR (AWC) 2026-11-02 06:10 UTC'den beri toplanıyor; 48 saatlik kabul süresi işliyor |
+| 2. Gözlem ingest | Tamamlandı (2026-11-02, proje sahibinin onayıyla): QC raporu ve bildirim testi tamam; 48 saatlik kesintisiz çalışma bilgisayar kapandığı için sunucuda kanıtlanacak ([rapor](docs/reports/qc-canli-2026-11-02.md)) |
 | UKMO geçmiş çıkarımı | Tamamlandı: 2.929 çalıştırma, 2024-10-30T18Z → 2026-11-01T18Z (spec §5.2.5); veritabanında (9,1 milyon satır, 42 nokta) |
 
 ## Mimari özet
