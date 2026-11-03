@@ -9,13 +9,14 @@ from __future__ import annotations
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 import structlog
 
 from hava.db.session import session_scope
+from hava.ingest.archive.http_range import RemoteFileGone
 from hava.ingest.models import runs
 from hava.ingest.models.ensemble import (
     EnsembleCollector,
@@ -38,6 +39,8 @@ from hava.settings import Settings
 log = structlog.get_logger()
 
 Collect = Callable[[], tuple[RunCollector, dict[str, Any]]]
+# Bu kadar yeni bir çalıştırmada eksik dosya "henüz yayımlanmadı" sayılır, hata değil.
+NOT_YET_PUBLISHED = timedelta(hours=12)
 EnsembleCollect = Callable[[], tuple[EnsembleCollector, dict[str, Any]]]
 
 
@@ -75,10 +78,23 @@ def _start(src: Source, init: datetime) -> int:
     return mid
 
 
-def _fail(mid: int, init: datetime, exc: BaseException) -> None:
+def _fail(mid: int, init: datetime, exc: BaseException) -> bool:
+    """Hatayı kaydeder. Yeni bir çalıştırmada dosya henüz yoksa (kaynaklar sırasız yayımlayabilir)
+    çalıştırma deneme hakkı yakılmadan bekleyen duruma döner ve ``True`` döner."""
+    error = f"{type(exc).__name__}: {exc}"[:500]
     with session_scope() as session:
-        runs.set_status(session, mid, init, "failed", error=f"{type(exc).__name__}: {exc}"[:500])
+        if isinstance(exc, RemoteFileGone) and datetime.now(UTC) - init < NOT_YET_PUBLISHED:
+            run = runs.get_run(session, mid, init)
+            attempts = int(((run.files if run else None) or {}).get("attempts", 1)) - 1
+            runs.set_status(
+                session, mid, init, "pending", files={"attempts": attempts}, error=error
+            )
+            session.commit()
+            log.info("model_run_deferred", init=init.isoformat(), error=error)
+            return True
+        runs.set_status(session, mid, init, "failed", error=error)
         session.commit()
+    return False
 
 
 def _summary(
@@ -133,7 +149,8 @@ def process_run(
             )
             session.commit()
     except Exception as exc:
-        _fail(mid, init, exc)
+        if _fail(mid, init, exc):
+            return {"run": init.isoformat(), "deferred": True}
         raise
     return _summary(code, init, n, stats, started)
 
@@ -188,6 +205,7 @@ def process_ensemble_run(
             )
             session.commit()
     except Exception as exc:
-        _fail(mid, init, exc)
+        if _fail(mid, init, exc):
+            return {"run": init.isoformat(), "deferred": True}
         raise
     return _summary(code, init, n, stats, started)

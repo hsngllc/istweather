@@ -41,8 +41,10 @@ GRIB2 mesajları alan olarak bölünemez: İstanbul için bile her parametrenin 
   kesinti sonrası önce güncel veri gelir, eksik eskiler sonraki turlarda dolar (2026-11-03; önceden
   eskiden yeniye işleniyordu ve ilk dolumda tazelik uyarısına yol açtı).
 - **Tazelik:** `models.meta.stale_hours` olan modeller `source_health`'te `model:<kod>` olarak izlenir.
-  Hiç yüklenmiş çalıştırması olmayan yeni bir model, toplayıcısı (`collector:<kod>`) ilk turunu
-  başarıyla bitirene kadar bayat sayılmaz; toplayıcı hata verirse iş hatası bildirimi gider.
+  Hiç yüklenmiş çalıştırması olmayan yeni bir model, toplayıcısı (`collector:<kod>`) tazelik eşiği
+  boyunca hiçbir şey yükleyemezse bayat sayılır (eşik toplayıcı kaydının ilk oluştuğu andan,
+  `source_health.created_at`, migration 0003); toplayıcı hata verirse iş hatası bildirimi gider.
+  (2026-11-03: önceki "ilk tur bitince" kuralı GDPS'te ilk duyurulardan önce yanlış uyarı üretti.)
 
 ## ECMWF IFS özel notları
 - Kaynak ECMWF portalı (`data.ecmwf.int`). AWS yansısı 2026-11-02'de tek bir index isteğine bile
@@ -61,6 +63,9 @@ GRIB2 mesajları alan olarak bölünemez: İstanbul için bile her parametrenin 
 - Kaynak bir alanı başlangıç anında "değer yok" anlamında sabit doldurursa o alan 0. adımda alınmaz
   (IFS `10fg`). Kaynak gerçek değer veriyorsa alınır (ICON-EU `VMAX_10M`).
 - Görüş (`vis`, m) kanonik değişkenlere eklendi → `visibility_m` (şimdilik yalnız GFS).
+- Başlangıcından 12 saat geçmemiş bir çalıştırmada dosya eksik çıkarsa (kaynaklar sırasız yayımlayabilir;
+  GFS 06z'de f168 varken f153 yoktu) çalıştırma `failed` değil `pending`'e döner ve deneme hakkı
+  yakılmaz; 12 saatten eski çalıştırmada eksik dosya gerçek hatadır.
 
 ## NOAA GFS özel notları (2026-11-03)
 - Kaynak AWS NODD (`noaa-gfs-bdp-pds`); `.idx`'ten byte-range. Kayıt seçimi değişken + seviye +

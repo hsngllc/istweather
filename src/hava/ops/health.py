@@ -129,13 +129,17 @@ def _evaluate_models(session: Session, now: datetime) -> list[Transition]:
             )
         ).scalar_one_or_none()
         source = f"model:{code}"
+        limit = timedelta(hours=float(meta["stale_hours"]))
         if last is not None:
             _upsert(session, source, last_success_at=last, updated_at=now)
-        elif session.get(SourceHealth, f"collector:{code}") is None:
-            # Yeni eklenen model: toplayıcı ilk turunu bitirmeden "veri yok" denmez (toplayıcı
-            # hata verirse iş hatası bildirimi zaten gider).
-            continue
-        stale = last is None or now - last > timedelta(hours=float(meta["stale_hours"]))
+        else:
+            # Yeni eklenen model: toplayıcı eşik süresince hiçbir şey yükleyemediyse "veri yok"
+            # (ör. GDPS'in ilk çalıştırması duyurularla saatler sonra gelir). Toplayıcı hata
+            # verirse iş hatası bildirimi zaten gider.
+            collector = session.get(SourceHealth, f"collector:{code}")
+            if collector is None or now - collector.created_at < limit:
+                continue
+        stale = last is None or now - last > limit
         if _set_stale(session, source, stale, now):
             transitions.append(
                 Transition(source, stale, f"son yüklenen çalıştırma {_fmt(last, now)}")

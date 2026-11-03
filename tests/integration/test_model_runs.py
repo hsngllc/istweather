@@ -2,6 +2,7 @@
 
 import os
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 from sqlalchemy import delete, func, select
@@ -91,13 +92,14 @@ def test_model_freshness(mid: int) -> None:
             session.commit()
         return {k: v for k, v in out.items() if k == f"model:{MODEL}"}
 
-    # Yeni model: toplayıcı ilk turunu bitirmeden bildirim yok.
+    # Yeni model: toplayıcı yokken ve eşik dolmadan bildirim yok.
     assert model_transitions(now) == {}
-    # Toplayıcı turunu bitirdi ama hiç yüklenmiş çalıştırma yok → bayat (METAR'daki "veri yok").
     with session_scope() as session:
         record_success(session, f"collector:{MODEL}", now)
         session.commit()
-    assert model_transitions(now) == {f"model:{MODEL}": True}
+    assert model_transitions(now + timedelta(hours=17)) == {}
+    # Toplayıcı eşik (18 sa) boyunca hiçbir şey yükleyemedi → bayat (METAR'daki "veri yok").
+    assert model_transitions(now + timedelta(hours=19)) == {f"model:{MODEL}": True}
     with session_scope() as session:
         set_status(session, mid, now - timedelta(hours=8), "loaded")
         session.commit()
@@ -135,3 +137,31 @@ def test_ensemble_stats_upsert_keeps_traceability(seeded: str) -> None:
     assert (first, again, len(stored)) == (1, 1, 1)  # bilinmeyen nokta atlanır, tekrar günceller
     assert stored[0].mean == pytest.approx(1.5) and stored[0].extra == {"period_h": 3}
     assert stored[0].extraction == "bilinear_lsm" and stored[0].exceed_probs == {"ge_1": 0.56}
+
+
+def test_missing_file_defers_fresh_run_but_fails_old_one(mid: int) -> None:
+    from hava.ingest.archive.http_range import RemoteFileGone
+    from hava.ingest.models import ecmwf
+    from hava.ingest.models.runner import Source, process_run
+    from hava.region import load_region
+
+    settings = get_settings()
+    region = load_region(settings.region_config)
+    src = Source(ecmwf.IFS.spec, "test", "https://kaynak", "0p1", "test")
+
+    def missing() -> tuple[Any, dict[str, Any]]:
+        raise RemoteFileGone("https://kaynak/eksik.grib2")
+
+    fresh = datetime.now(UTC).replace(minute=0, second=0, microsecond=0) - timedelta(hours=4)
+    assert process_run(src, settings, region, fresh, missing) == {
+        "run": fresh.isoformat(),
+        "deferred": True,
+    }
+    old = fresh - timedelta(days=2)
+    with pytest.raises(RemoteFileGone):
+        process_run(src, settings, region, old, missing)
+    with session_scope() as session:
+        deferred, failed = get_run(session, mid, fresh), get_run(session, mid, old)
+    assert deferred is not None and deferred.status == "pending"
+    assert deferred.files["attempts"] == 0 and should_process(deferred)  # hak yanmadı
+    assert failed is not None and failed.status == "failed" and failed.files["attempts"] == 1

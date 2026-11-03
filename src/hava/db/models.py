@@ -314,3 +314,5 @@ class SourceHealth(Base):
     last_error: Mapped[str | None] = mapped_column(Text)
     stale: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    # İlk kayıt zamanı (yeni eklenen modelin bekleme süresi için; güncellemede değişmez).
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
