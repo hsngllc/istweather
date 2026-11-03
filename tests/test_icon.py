@@ -163,3 +163,13 @@ def test_collect_run_end_to_end() -> None:
 def test_missing_required_file_fails_the_run() -> None:
     with pytest.raises(RemoteFileGone):
         _collect(FakeDwd(missing={("T_2M", 1)}))
+
+
+def test_eps_steps_and_member_urls() -> None:
+    steps = icon.eps_steps(INIT, 168)
+    assert steps[:2] == [0, 3] and steps[-1] == 120 and len(steps) == 33
+    base = "https://opendata.dwd.de/weather/nwp/v1/m"
+    w = icon.EPS_FIELDS[0]
+    assert icon.file_url(base, icon.ICON_EU_EPS, w, INIT, 24, 7) == (
+        f"{base}/icon-eu-eps/p/T_2M/r/2026-11-03T00:00/e/07/s/PT024H00M.grib2"
+    )

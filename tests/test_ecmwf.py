@@ -90,3 +90,48 @@ def test_aifs_units_differ_from_ifs() -> None:
     assert chosen["tcc"].scale == 0.01  # % (IFS: 0–1)
     assert "gust" not in chosen and "ptype" not in chosen  # AIFS'te yok
     assert AIFS.spec.gust_definition(6) is None
+
+
+def test_ensemble_steps_follow_plan_and_publication() -> None:
+    d00 = datetime(2026, 11, 2, 0, tzinfo=UTC)
+    ifs = ecmwf.IFS_ENS.steps(d00, 168)
+    assert ifs[:2] == [0, 3] and ifs[24:26] == [72, 78] and ifs[-1] == 168 and len(ifs) == 41
+    assert ecmwf.IFS_ENS.steps(d00.replace(hour=6), 168)[-1] == 144  # 06/18z 144 sa
+    aifs = ecmwf.AIFS_ENS.steps(d00, 168)
+    assert aifs[:2] == [0, 6] and len(aifs) == 29  # AIFS ENS yalnız 6 saatlik
+    assert ecmwf.ens_url(BASE, d00, 6, "pf", ecmwf.AIFS_ENS).endswith(
+        "/20261102/00z/aifs-ens/0p25/enfo/20261102000000-6h-enfo-pf.grib2"
+    )
+
+
+def test_select_members_per_member_fields_and_single_static() -> None:
+    ens = ecmwf.IFS_ENS
+    entries = _index("ifsens0p25_20261102T18Z_0h_ef_m1-2.index")
+    chosen = ecmwf.select_members(entries, ens.wants + ens.static, 0, ens.static)
+    static = [(w.var, m) for w, m, _ in chosen if w in ens.static]
+    assert static == [("lsm", 1)]  # 50 kopyadan biri
+    fields = {(w.var, m) for w, m, _ in chosen if w not in ens.static}
+    assert fields == {
+        (v, m) for v in ("t2m", "precip_acc", "snow_acc", "u10", "v10") for m in (1, 2)
+    }
+    late = ecmwf.select_members(_index("ifsens0p25_20261102T18Z_96h_ef_m1-2.index"), ens.wants, 96)
+    assert sorted((w.param, m) for w, m, _ in late if w.var == "gust") == [
+        ("10fg3", 1),
+        ("10fg3", 2),
+    ]
+
+
+def test_select_members_control_has_member_zero() -> None:
+    ens = ecmwf.AIFS_ENS
+    entries = _index("aifsens0p25_20261102T18Z_0h_cf.index")
+    chosen = ecmwf.select_members(entries, ens.wants + ens.static, 0, ens.static)
+    assert {m for _, m, _ in chosen} == {0}
+    assert {w.var for w, _, _ in chosen} == {
+        "t2m",
+        "precip_acc",
+        "snow_acc",
+        "u10",
+        "v10",
+        "lsm",
+        "orog",
+    }

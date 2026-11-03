@@ -109,6 +109,7 @@ Yayın (portal zaman damgası, UTC): IFS 0.25 00z 07:34, 06z 12:27, 12z 19:34, 1
 - Hamle parametresi: 0–90 sa `10fg`, 93–144 sa `10fg3`, 150+ sa `10fg` (03/06/93/96/144/150/168h index'lerinden). 0. adımda `tp`, `cp`, `sf` ve `10fg` 224 baytlık **sabit sıfır** mesajları (2026-11-03 düzeltmesi: önceki not "`_length` 0" diyordu, yanlış); `10fg` 0. adımda tanımsız olduğundan alınmaz, birikimlerde 0 başlangıç değeridir. `z` (orografi) yalnız 0. adımda.
 - 0.1° mesaj boyutları (06z, MB): `2t` 1,4 · `2d` 1,4 · `tp` 1,1–2,3 · `msl` 2,2 · `10u/10v` 3,7 · `10fg` 3,1 · `tcc` 2,2 · `t@850` 1,2 · `lsm` 0,75 · `z` 4,0. Çalıştırma başına seçilen 13 yüzey + 1 basınç alanı: ~1,2–1,5 GB.
 - `ptype` kodları ([param-db 260015](https://codes.ecmwf.int/grib/param-db/260015)): 0 yok, 1 yağmur, 3 donan yağmur, 5 kar, 6 sulu kar, 7 yağmur-kar, 8 buz taneleri, 12 donan çisenti.
+- **Ensemble'lar (2026-11-03, index'lerden; [ADR-0006](decisions/0006-ensemble-hacim-plani.md)):** IFS ENS 0.25° `…/ifs/0p25/enfo/<stem>-<adım>h-enfo-ef.grib2` tek dosyada 50 pf (`number` 1–50, `type` pf; kontrol yok), adım başına 8.850 mesaj. **`z` (orografi) ENS açık verisinde yok** (0/96/144 sa index'leri) → IFS ENS sıcaklığına yükseklik düzeltmesi uygulanamıyor; `lsm` her adımda üye başına. Hamle kuralı deterministikle aynı (`10fg` ≤ 90 sa, `10fg3` 93–144 sa, `10fg` 150+ sa; 12z 90/93/150/168 sa'ten). AIFS ENS: `-enfo-cf` (kontrol, `number` yok) + `-enfo-pf` (1–50); `lsm` ve `z` 0. adımda ikisinde de. Mesajlar dosyada karışık sırada (seçilen 300 mesaj → 262 ayrı aralık) → istek birleştirme fayda etmiyor. IFS ENS 0.1° de var (`-ef-sfc`/`-ef-pl`), adım başına 5 kat büyük.
 - **AIFS Single (2026-11-03):** yüzey ve basınç seviyesi tek dosyada (`…-<adım>h-oper-fc.grib2`, `-sfc/-pl` eki yok); index'te `levtype` alanı ayırıyor (`z` hem yüzeyde hem basınç seviyelerinde var → seçimde `levtype` şart). 0. adımda 126, sonra 122 mesaj; `lsm`, `z`, `sdor`, `slor` yalnız 0. adımda. IFS'ten farklı olarak 0. adımda `tp/cp/sf` boş değil (224 baytlık sabit sıfır). Hamle ve yağış tipi yok. Izgara 0,25° (1440×721), boylam 180°'den başlıyor (çözücü −180…180'e çeviriyor), CCSDS. Birimler mesajdan: `tp/cp/sf` kg m⁻² `stepType=accum` "0-6"; `tcc/lcc` %; `z` m² s⁻². Çalıştırma başına (≤168 sa, 29 adım) 321 mesaj, ~113 MB, 15–30 sn.
 
 ### 2.2 NOAA GFS 0.25°
@@ -149,6 +150,8 @@ Yayın (portal zaman damgası, UTC): IFS 0.25 00z 07:34, 06z 12:27, 12z 19:34, 1
 0.25° tam set yok ✅. Varış: f000 ~T+3s47dk, f240 (s) ~T+5s30dk.
 
 **Saklama/arşiv** ✅: NOMADS 4 gün. AWS en eski `gefs.20170101` (çapraz kontrol ✅), eksik gün yok; v12 `atmos/` düzeni 2020-09-23'ten. NCEI: "Data on the NODD is not officially archived" ⚠️ → kendi arşivimiz kritik.
+
+**Faz 3 bulguları (2026-11-03, .idx'lerden ✅)**: HTTPS `https://noaa-gefs-pds.s3.amazonaws.com/gefs.YYYYMMDD/HH/atmos/pgrb2sp25/<üye>.tHHz.pgrb2s.0p25.fFFF`. `APCP` yalnız 6 saatlik kova: f003 `"0-3"`, f006 `"0-6"`, f009 `"6-9"`, f012 `"6-12"`, f078 `"72-78"`, f084 `"78-84"` (0–N kaydı yok). `pgrb2s` f000'da `HGT:surface` var, `LAND` yok (yalnız `pgrb2b` 0.5°'de) → kara maskesi aynı 0,25° ızgaradaki GFS `LAND`'dan. `GUST` anlık; kar miktarı yok; `TCDC`/kategorik bayraklar yalnız aralık ortalaması. Üye × adım başına temel 5 alan ~3,2 MB.
 
 **Sürüm**: v12.3.23; 2026 SCN'leri dosya adı değiştirmedi ✅; GEFSv13 tarihi ❓.
 
@@ -199,6 +202,7 @@ Her dosya tek alan; `.idx` yok (gerek de yok). Sabit alanlar (`HSURF`, `FR_LAND`
 - `RAIN_CON` eccodes'ta `crr`, birim "kg m**-2 s**-1" görünüyor; ama `stepType=accum`, aralık "0-1" ve ICON'da hiçbir hücrede `TOT_PREC`'i aşmıyor (ICON-EU'da 16 hücrede ≤ 0,13 mm paketleme farkı) → başlangıçtan beri birikim (kg m⁻²). Belge: `TOT_PREC = RAIN_GSP + SNOW_GSP + RAIN_CON + SNOW_CON`, hepsi "accumulated since model start".
 - `WW`: "Significant weather of the last hour"; alabileceği değerler 0–3, 45, 48, 51–57, 61–67, 71–77, 80–86, 95, 96 (Database Reference Tablo 6.1, WMO 0 20 003 alt kümesi). ICON global'de 96 da görüldü (belge "yalnız ICON-D2" diyor).
 - Kırpma (bölge kutusu + 1°): ICON 687 hücre, ICON-EU 2.751 hücre.
+- **ICON-EU-EPS (2026-11-03):** 00/06/12/18z; 0–75 sa saatlik, 78–120 sa 3 saatlik; parametreler `T_2M`, `TOT_PREC`, `U/V_10M`, `VMAX_10M`, `PS`, `CLCT`, `SNOW_CON`, `SNOW_GSP`, `T` (çiy noktası ve `PMSL` yok). Sabitler (`CLAT/CLON/FR_LAND/HSURF`) üye dizininde (`…/r/<çalıştırma>/e/01/s/PT000H00M.grib2`; üyesiz yol 404). `VMAX_10M` 0. adımda yok. Izgara #63, 342.428 hücre; kırpmada 1.224. Üye × adım başına temel alanlar ~2,3 MB. ICON-EPS (global, #39): `T_2M`, `TD_2M`, `TOT_PREC`, `U/V_10M`, `VMAX_10M`, `PS`, `CLCT` (kar yok); üye × adım ~8 MB.
 - v1 dizin adları: `T_2M`, `TD_2M`, `TOT_PREC`, `RAIN_CON`, `SNOW_CON`, `SNOW_GSP`, `U_10M`, `V_10M`, `VMAX_10M`, `PMSL`, `CLCT`, `CLCL`, `WW`, `T` (850 hPa: `lvt1/100/lv1/85000`), sabitler `CLAT`, `CLON`, `FR_LAND`, `HSURF` (yalnız 0. adım). ICON-EU'da ek olarak `CEILING`, `SNOWLMT` var; `VIS` hiçbirinde yok.
 
 ### 2.5 Météo-France — ARPEGE
@@ -553,7 +557,7 @@ Tüm metinler `models.attribution_text` ve `/api/v1/meta/sources`'a taşınacak 
 2. ECMWF ToU'daki "service agreement" maddesinin reklam gelirli bir sitenin anonim açık veri indirmesine uygulanıp uygulanmadığı (ECMWF'ye sorulabilir).
 3. `ecmwf-opendata` 0.3.35'in 50r1 sonrası `type="cf"` davranışı; 0.1°'deki "extra fields"; ENS pf yerel çözünürlüğünün ~9 km olduğu (çıkarım ⚠️).
 4. NOAA'nın resmî atıf cümlesi; NODD bucket'larının resmî saklama politikası; NOMADS engelleme eşikleri; GFSv17 ve GEFSv13'ün kesin tarihleri ve yeni dosya adları; GFS `TMP:surface` deniz üstünde skin mi foundation SST mi; `LAND` ikili mi kesirli mi.
-5. ~~ICON-EU (#62) doğu kenarı~~ ✅ 64°D (2026-11-03); ICON-EU-EPS (#63) native alanının doğu kenarı (İstanbul kapsamı çıkarım ⚠️); opendata.dwd.de fair-use kuralları.
+5. ~~ICON-EU (#62) ve ICON-EU-EPS (#63) doğu kenarı~~ ✅ 64,0°D / 64,1°D (2026-11-03, CLAT/CLON'dan; EPS sabitleri üye dizininde `e/01/`); opendata.dwd.de fair-use kuralları ❓. Ensemble boyut ölçümleri: [ADR-0006](decisions/0006-ensemble-hacim-plani.md).
 6. Météo-France S3 açık paketlerinin resmî saklama süresi; portal WCS katmanlarının parametre seti; yerel GRIB kodlarının adları; ARPEGE T850'nin başlıkta doğrulanması; resmî arşivin ücreti.
 7. UKMO S3 oran sınırı; `temperature_at_surface`'in denizde SST'ye eşit olup olmadığı; `wind_gust_at_10m` tanımında iki PDF arasındaki tutarsızlık; Planetary Computer aynasının 2024 kapsamı; MOGREPS-G tam değişken listesi.
 8. **UKMO CC BY-SA'nın birleşik tahmine etkisi** — Met Office'in resmî açıklaması bulunamadı (hukuki görüş gerekli).

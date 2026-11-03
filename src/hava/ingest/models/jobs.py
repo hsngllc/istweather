@@ -10,7 +10,7 @@ from typing import Any
 import structlog
 
 from hava.db.session import session_scope
-from hava.ingest.models import ecmwf, gfs, icon
+from hava.ingest.models import ecmwf, gefs, gfs, icon
 from hava.ingest.models.pipeline import prune_files
 from hava.ops.health import record_error, record_success
 from hava.settings import get_settings
@@ -24,6 +24,11 @@ ADAPTERS: dict[str, Callable[[], list[dict[str, Any]]]] = {
     gfs.MODEL_CODE: gfs.collect,
     icon.ICON.code: icon.collect_icon,
     icon.ICON_EU.code: icon.collect_icon_eu,
+    # Ensemble'lar (ADR-0006): 00/12z
+    ecmwf.IFS_ENS.code: ecmwf.collect_ifs_ens,
+    ecmwf.AIFS_ENS.code: ecmwf.collect_aifs_ens,
+    gefs.MODEL_CODE: gefs.collect,
+    icon.ICON_EU_EPS.code: icon.collect_eps,
 }
 
 

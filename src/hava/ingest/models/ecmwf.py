@@ -13,6 +13,10 @@ AIFS Single 0.25°: tek dosya (yüzey + basınç seviyesi). Adımlar her çalı�
 Yağış başlangıçtan beri birikimli ama **kg m⁻²** (= mm); bulut **%**. Hamle ve yağış tipi yok
 (index'ten teyit, 2026-11-03).
 
+Ensemble'lar (ADR-0006, 00/12z): IFS ENS 0.25° (``enfo``, ``ef`` dosyası, 50 pf; hamle kuralı
+deterministikle aynı; orografi yok → yükseklik düzeltmesi yapılamaz), AIFS ENS (``cf`` + ``pf``
+dosyaları, 51 üye; hamle yok). Index'te üye ``number`` alanında; ``cf``'de yok (üye 0).
+
 ``model_max_lead_h``'e kadar alınır.
 """
 
@@ -28,9 +32,17 @@ from typing import Any
 import httpx
 
 from hava.ingest.archive.http_range import get_with_retry
+from hava.ingest.models import ensemble
+from hava.ingest.models.ensemble import EnsembleCollector
 from hava.ingest.models.grib import decode_message
 from hava.ingest.models.pipeline import ModelSpec, RunCollector
-from hava.ingest.models.runner import Source, candidate_runs, pending, process_run
+from hava.ingest.models.runner import (
+    Source,
+    candidate_runs,
+    pending,
+    process_ensemble_run,
+    process_run,
+)
 from hava.processing.grid import BBox
 from hava.region import Region, load_region
 from hava.settings import Settings, get_settings
@@ -150,11 +162,74 @@ PRODUCTS = (IFS, AIFS_SINGLE)
 MODEL_CODE = IFS.code
 
 
+@dataclass(frozen=True)
+class EnsProduct:
+    code: str
+    extractor: str
+    path: str  # portal yolu, ör. "ifs/0p25/enfo"
+    resolution: str
+    files: tuple[str, ...]  # dosya türleri: "ef" | "cf", "pf"
+    members: tuple[int, ...]
+    wants: tuple[Want, ...]
+    static: tuple[Want, ...]
+    published: Callable[[datetime], list[int]]  # kaynağın yayımladığı adımlar
+    gust_definition: Callable[[float], str | None]
+
+    @property
+    def spec(self) -> ModelSpec:
+        return ModelSpec(self.code, self.gust_definition)
+
+    def steps(self, init: datetime, max_lead_h: int) -> list[int]:
+        """Ortak ensemble adım planı ∩ yayımlanan adımlar (``model_max_lead_h``'e kadar)."""
+        available = set(self.published(init))
+        return [s for s in ensemble.STEPS if s in available and s <= max_lead_h]
+
+
+IFS_ENS = EnsProduct(
+    code="ecmwf_ifs_ens",
+    extractor="ecmwf-ifs-ens-1",
+    path="ifs/0p25/enfo",
+    resolution="0p25",
+    files=("ef",),
+    members=tuple(range(1, 51)),
+    wants=(
+        Want("2t", "sfc", "t2m"),
+        Want("tp", "sfc", "precip_acc", 1000.0),
+        Want("sf", "sfc", "snow_acc", 1000.0),
+        Want("10u", "sfc", "u10"),
+        Want("10v", "sfc", "v10"),
+        Want("10fg", "sfc", "gust"),
+        Want("10fg3", "sfc", "gust"),
+    ),
+    static=(Want("lsm", "sfc", "lsm"),),
+    published=_ifs_steps,  # deterministikle aynı (06/18z 144 sa)
+    gust_definition=gust_definition,
+)
+AIFS_ENS = EnsProduct(
+    code="ecmwf_aifs_ens",
+    extractor="ecmwf-aifs-ens-1",
+    path="aifs-ens/0p25/enfo",
+    resolution="0p25",
+    files=("cf", "pf"),
+    members=tuple(range(0, 51)),
+    wants=(
+        Want("2t", "sfc", "t2m"),
+        Want("tp", "sfc", "precip_acc"),
+        Want("sf", "sfc", "snow_acc"),
+        Want("10u", "sfc", "u10"),
+        Want("10v", "sfc", "v10"),
+    ),
+    static=STATIC,
+    published=lambda init: list(range(0, 361, 6)),
+    gust_definition=lambda step: None,
+)
+
+
 def steps_for(init: datetime, max_lead_h: int, product: Product = IFS) -> list[int]:
     return [s for s in product.steps(init) if s <= max_lead_h]
 
 
-def file_stem(base: str, init: datetime, product: Product = IFS) -> str:
+def file_stem(base: str, init: datetime, product: Product | EnsProduct = IFS) -> str:
     return f"{base}/{init:%Y%m%d}/{init:%H}z/{product.path}/{init:%Y%m%d%H}0000"
 
 
@@ -252,6 +327,109 @@ def collect_run(
                 stats["messages"] += 1
                 stats["bytes"] += len(blob)
     return col, stats
+
+
+def ens_url(base: str, init: datetime, step: int, ftype: str, product: EnsProduct) -> str:
+    return f"{file_stem(base, init, product)}-{step}h-enfo-{ftype}.grib2"
+
+
+def select_members(
+    entries: Sequence[dict[str, Any]],
+    wants: Sequence[Want],
+    step: int,
+    static: Sequence[Want] = (),
+) -> list[tuple[Want, int, dict[str, Any]]]:
+    """Üye mesajları (her üye için); sabit alanlardan yalnız ilk bulunan alınır."""
+    out: list[tuple[Want, int, dict[str, Any]]] = []
+    for w, e in select(entries, [w for w in wants if w in static], step):
+        out.append((w, int(e.get("number") or 0), e))
+    gust_param = "10fg3" if 90 < step <= 144 else "10fg"
+    for w in wants:
+        if w in static or (w.var == "gust" and (step == 0 or w.param != gust_param)):
+            continue
+        for e in entries:
+            if (
+                e.get("param") == w.param
+                and e.get("levtype", w.levtype) == w.levtype
+                and (w.level is None or e.get("levelist") == w.level)
+                and int(e.get("_length", 0)) > 0
+            ):
+                out.append((w, int(e.get("number") or 0), e))
+    return out
+
+
+def ens_run_complete(
+    client: httpx.Client, base: str, init: datetime, max_lead_h: int, product: EnsProduct
+) -> bool:
+    last = product.steps(init, max_lead_h)[-1]
+    url = ens_url(base, init, last, product.files[-1], product)
+    return client.get(url[: -len(".grib2")] + ".index").status_code == 200
+
+
+def collect_ensemble_run(
+    client: httpx.Client, settings: Settings, region: Region, init: datetime, product: EnsProduct
+) -> tuple[EnsembleCollector, dict[str, Any]]:
+    bbox = BBox(region.lat_min, region.lat_max, region.lon_min, region.lon_max)
+    col = EnsembleCollector(bbox.expanded(settings.model_crop_margin_deg), product.members)
+    base = settings.ecmwf_base_url
+    stats = {"messages": 0, "bytes": 0}
+    members = set(product.members)
+    with ThreadPoolExecutor(settings.model_download_workers) as pool:
+        for step in product.steps(init, settings.model_max_lead_h):
+            wants = product.wants + (product.static if step == 0 else ())
+            jobs: list[tuple[Want, int, str, dict[str, Any]]] = []
+            for ftype in product.files:
+                url = ens_url(base, init, step, ftype, product)
+                index = get_with_retry(client, url[: -len(".grib2")] + ".index").text
+                jobs += [
+                    (w, m, url, e)
+                    for w, m, e in select_members(parse_index(index), wants, step, product.static)
+                    if m in members or w in product.static
+                ]
+            blobs = pool.map(lambda j: _download(client, j[2], j[3]), jobs)
+            for (w, m, _, _), blob in zip(jobs, blobs, strict=True):
+                f = decode_message(blob)
+                if w in product.static:
+                    col.add_static(w.var, f, w.scale)
+                else:
+                    col.add(w.var, step, m, f, w.scale)
+                stats["messages"] += 1
+                stats["bytes"] += len(blob)
+    return col, stats
+
+
+def collect_ensemble(product: EnsProduct, max_runs: int = 1) -> list[dict[str, Any]]:
+    """Worker işi: 00/12z ensemble çalıştırmaları (yeniden eskiye)."""
+    settings = get_settings()
+    region = load_region(settings.region_config)
+    base = settings.ecmwf_base_url
+    lead = settings.model_max_lead_h
+    src = Source(product.spec, product.extractor, base, product.resolution, LICENSE)
+    done: list[dict[str, Any]] = []
+    with httpx.Client(timeout=120.0, headers={"User-Agent": settings.http_user_agent}) as client:
+        # Önce en yeni çalıştırma (tazelik), sonra eksik kalan eskiler.
+        candidates = candidate_runs(datetime.now(UTC), settings.model_lookback_hours, cycle_h=12)
+        for init in reversed(candidates):
+            if not pending(product.code, init):
+                continue
+            if not ens_run_complete(client, base, init, lead, product):
+                continue
+
+            def fetch(i: datetime = init) -> tuple[EnsembleCollector, dict[str, Any]]:
+                return collect_ensemble_run(client, settings, region, i, product)
+
+            done.append(process_ensemble_run(src, settings, region, init, fetch))
+            if len(done) >= max_runs:
+                break
+    return done
+
+
+def collect_ifs_ens() -> list[dict[str, Any]]:
+    return collect_ensemble(IFS_ENS)
+
+
+def collect_aifs_ens() -> list[dict[str, Any]]:
+    return collect_ensemble(AIFS_ENS)
 
 
 def collect(product: Product = IFS, max_runs: int = 2) -> list[dict[str, Any]]:

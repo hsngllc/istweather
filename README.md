@@ -16,7 +16,7 @@ Tek doğru kaynak: [istanbul-hava-backend-spec.md](istanbul-hava-backend-spec.md
 | 0. Keşif | Tamamlandı (2026-11-01) |
 | 1. İskelet | Tamamlandı (2026-11-02): `docker compose up` ve CI yeşil |
 | 2. Gözlem ingest | Tamamlandı (2026-11-02, proje sahibinin onayıyla): QC raporu ve bildirim testi tamam; 48 saatlik kesintisiz çalışma bilgisayar kapandığı için sunucuda kanıtlanacak ([rapor](docs/reports/qc-canli-2026-11-02.md)) |
-| 3. Canlı model ingest | Sürüyor: ortak hat (GRIB, kırpma, maskeli nokta çıkarımı; düzenli ve üçgen ızgara) ile ECMWF IFS 0.1°, AIFS Single, NOAA GFS, DWD ICON ve ICON-EU canlıda ([ADR-0005](docs/decisions/0005-canli-model-hatti.md)); diğer modeller sırada |
+| 3. Canlı model ingest | Sürüyor: ortak hat (GRIB, kırpma, maskeli nokta çıkarımı; düzenli ve üçgen ızgara) ile ECMWF IFS 0.1°, AIFS Single, NOAA GFS, DWD ICON ve ICON-EU canlıda ([ADR-0005](docs/decisions/0005-canli-model-hatti.md)); ensemble'lar IFS ENS, AIFS ENS, GEFS, ICON-EU-EPS (00/12z, ham üyeler Parquet'te, istatistikler `ensemble_stats`'ta; [ADR-0006](docs/decisions/0006-ensemble-hacim-plani.md)); ARPEGE, UKMO ve GEM sırada |
 | UKMO geçmiş çıkarımı | Tamamlandı: 2.929 çalıştırma, 2024-10-30T18Z → 2026-11-01T18Z (spec §5.2.5); veritabanında (9,1 milyon satır, 42 nokta) |
 
 ## Mimari özet

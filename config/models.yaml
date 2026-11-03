@@ -30,6 +30,8 @@ models:
       Weather Forecasts (ECMWF). Source: www.ecmwf.int. CC BY 4.0. Veriler işlenmiştir.
     active: true
     internal_only: false
+    meta:
+      stale_hours: 24  # 00/12z + yayın gecikmesi
   - code: ecmwf_aifs_single
     provider: ECMWF
     kind: deterministic
@@ -53,6 +55,8 @@ models:
       Weather Forecasts (ECMWF) (AIFS ENS). Source: www.ecmwf.int. CC BY 4.0. Veriler işlenmiştir.
     active: true
     internal_only: false
+    meta:
+      stale_hours: 24  # 00/12z + yayın gecikmesi
   - code: ncep_gfs
     provider: NOAA/NCEP
     kind: deterministic
@@ -77,6 +81,8 @@ models:
       birleştirilmiştir; orijinal NOAA verisi değildir ve NOAA tarafından onaylanmamıştır.
     active: true
     internal_only: false
+    meta:
+      stale_hours: 24  # 00/12z + yayın gecikmesi
   - code: dwd_icon
     provider: DWD
     kind: deterministic
@@ -115,6 +121,8 @@ models:
     attribution_text: "Based on data from Deutscher Wetterdienst (Source: Deutscher Wetterdienst), processed."
     active: true
     internal_only: false
+    meta:
+      stale_hours: 24  # 00/12z + yayın gecikmesi
   - code: mf_arpege
     provider: Météo-France
     kind: deterministic
