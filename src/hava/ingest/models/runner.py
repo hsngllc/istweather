@@ -17,6 +17,14 @@ import structlog
 
 from hava.db.session import session_scope
 from hava.ingest.models import runs
+from hava.ingest.models.ensemble import (
+    EnsembleCollector,
+    extract_members,
+    member_stats,
+    store_stats,
+    write_members,
+)
+from hava.ingest.models.ensemble import write_crop as write_ensemble_crop
 from hava.ingest.models.pipeline import (
     ModelSpec,
     RunCollector,
@@ -30,6 +38,7 @@ from hava.settings import Settings
 log = structlog.get_logger()
 
 Collect = Callable[[], tuple[RunCollector, dict[str, Any]]]
+EnsembleCollect = Callable[[], tuple[EnsembleCollector, dict[str, Any]]]
 
 
 @dataclass(frozen=True)
@@ -54,18 +63,43 @@ def pending(code: str, init: datetime) -> bool:
         return runs.should_process(runs.get_run(session, runs.model_id(session, code), init))
 
 
-def process_run(
-    src: Source, settings: Settings, region: Region, init: datetime, collect: Collect
-) -> dict[str, Any]:
-    code = src.spec.code
-    started = time.monotonic()
+def _start(src: Source, init: datetime) -> int:
+    """Durumu ``downloading`` yapar, deneme sayısını artırır; model kimliğini döndürür."""
     with session_scope() as session:
-        mid = runs.model_id(session, code)
+        mid = runs.model_id(session, src.spec.code)
         run = runs.get_run(session, mid, init)
         attempts = int(((run.files if run else None) or {}).get("attempts", 0)) + 1
         files = {"attempts": attempts, "source": src.source, "resolution": src.resolution}
         runs.set_status(session, mid, init, "downloading", files=files)
         session.commit()
+    return mid
+
+
+def _fail(mid: int, init: datetime, exc: BaseException) -> None:
+    with session_scope() as session:
+        runs.set_status(session, mid, init, "failed", error=f"{type(exc).__name__}: {exc}"[:500])
+        session.commit()
+
+
+def _summary(
+    code: str, init: datetime, rows: int, stats: dict[str, Any], started: float
+) -> dict[str, Any]:
+    summary = {
+        "run": init.isoformat(),
+        "rows": rows,
+        **stats,
+        "seconds": round(time.monotonic() - started, 1),
+    }
+    log.info("model_run_loaded", model=code, **summary)
+    return summary
+
+
+def process_run(
+    src: Source, settings: Settings, region: Region, init: datetime, collect: Collect
+) -> dict[str, Any]:
+    code = src.spec.code
+    started = time.monotonic()
+    mid = _start(src, init)
     try:
         col, stats = collect()
         rows = extract_rows(col, src.spec, region.points, init)
@@ -99,17 +133,61 @@ def process_run(
             )
             session.commit()
     except Exception as exc:
+        _fail(mid, init, exc)
+        raise
+    return _summary(code, init, n, stats, started)
+
+
+def process_ensemble_run(
+    src: Source, settings: Settings, region: Region, init: datetime, collect: EnsembleCollect
+) -> dict[str, Any]:
+    """Ensemble: ham üyeler Parquet'e, istatistikler ``ensemble_stats``'a (ADR-0006)."""
+    code = src.spec.code
+    started = time.monotonic()
+    mid = _start(src, init)
+    try:
+        col, stats = collect()
+        mv = extract_members(col, src.spec, region.points, init)
+        attrs = {
+            "model": code,
+            "init_time": init.isoformat(),
+            "source": src.source,
+            "resolution": src.resolution,
+            "license": src.license,
+            "extractor": src.extractor,
+        }
+        crop = Path(settings.grib_dir) / code / f"{init:%Y%m%dT%H}Z.nc"
+        write_ensemble_crop(col, crop, attrs)
+        members = Path(settings.parquet_dir) / "ensemble" / code / f"{init:%Y%m%dT%H}Z.parquet"
+        member_rows = write_members(mv, members, attrs)
+        rows = member_stats(mv)
         with session_scope() as session:
             runs.set_status(
-                session, mid, init, "failed", error=f"{type(exc).__name__}: {exc}"[:500]
+                session,
+                mid,
+                init,
+                "extracted",
+                files={"crop_file": str(crop), "members_file": str(members)},
+            )
+            n = store_stats(session, mid, init, rows)
+            runs.set_status(
+                session,
+                mid,
+                init,
+                "loaded",
+                files={
+                    "extractor": src.extractor,
+                    "extraction": mv.extraction,
+                    "members": len(col.members),
+                    "steps": len(col.steps),
+                    "member_rows": member_rows,
+                    "rows": n,
+                    **stats,
+                    "seconds": round(time.monotonic() - started, 1),
+                },
             )
             session.commit()
+    except Exception as exc:
+        _fail(mid, init, exc)
         raise
-    summary = {
-        "run": init.isoformat(),
-        "rows": n,
-        **stats,
-        "seconds": round(time.monotonic() - started, 1),
-    }
-    log.info("model_run_loaded", model=code, **summary)
-    return summary
+    return _summary(code, init, n, stats, started)

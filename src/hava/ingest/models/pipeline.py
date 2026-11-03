@@ -94,7 +94,8 @@ class RunCollector:
             raise GridChanged("ızgara zaten tanımlı")
         self.crop = crop_cells(lat, lon, self.bbox, grid_id)
 
-    def _cropped(self, f: GribField) -> FloatArray:
+    def crop_field(self, f: GribField) -> FloatArray:
+        """Alanı çalıştırmanın ızgarasında kutuya kırpar (ilk alan ızgarayı belirler)."""
         if f.values.ndim == 1:
             if not isinstance(self.crop, CellCrop):
                 raise GridChanged(f"{f.short_name}: hücre merkezleri (set_cells) verilmedi")
@@ -116,10 +117,10 @@ class RunCollector:
         return self.crop.apply(f.values)
 
     def add(self, var: str, step_h: float, f: GribField, scale: float = 1.0) -> None:
-        self.fields[var][step_h] = self._cropped(f) * scale
+        self.fields[var][step_h] = self.crop_field(f) * scale
 
     def add_static(self, var: str, f: GribField, scale: float = 1.0) -> None:
-        self.static[var] = self._cropped(f) * scale
+        self.static[var] = self.crop_field(f) * scale
 
     @property
     def steps(self) -> list[float]:

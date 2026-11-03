@@ -55,6 +55,13 @@ class PointWeights:
         terms = np.where(w > 0, self.neighbourhood(field) * w, 0.0)
         return np.asarray(terms.sum(axis=1), dtype=np.float64)
 
+    def interpolate_many(self, fields: npt.NDArray[np.float64], masked: bool = True) -> FloatArray:
+        """(M, *ızgara) alanlarından (M, P): ensemble üyeleri aynı ağırlıklarla."""
+        w = self.masked if masked else self.linear
+        arr = np.asarray(fields, dtype=np.float64)
+        vals = arr.reshape(arr.shape[0], -1)[:, self.cells]  # (M, P, K)
+        return np.asarray(np.where(w > 0, vals * w, 0.0).sum(axis=-1), dtype=np.float64)
+
     def categorical(self, field: npt.NDArray[np.float64]) -> FloatArray:
         return np.asarray(field, dtype=np.float64).reshape(-1)[self.cat_cell]
 

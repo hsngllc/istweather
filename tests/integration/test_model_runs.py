@@ -6,9 +6,10 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from sqlalchemy import delete, func, select
 
-from hava.db.models import ModelRun, PointForecast, SourceHealth
+from hava.db.models import EnsembleStat, ModelRun, PointForecast, SourceHealth
 from hava.db.models import Point as PointRow
 from hava.db.session import session_scope
+from hava.ingest.models.ensemble import store_stats
 from hava.ingest.models.pipeline import store_rows
 from hava.ingest.models.runs import get_run, model_id, set_status, should_process
 from hava.ops.health import evaluate, record_success
@@ -103,3 +104,34 @@ def test_model_freshness(mid: int) -> None:
     assert model_transitions(now) == {f"model:{MODEL}": False}
     assert model_transitions(now + timedelta(hours=5)) == {}  # değişiklik yok, tekrar bildirim yok
     assert model_transitions(now + timedelta(hours=11)) == {f"model:{MODEL}": True}
+
+
+def test_ensemble_stats_upsert_keeps_traceability(seeded: str) -> None:
+    init = datetime(2026, 11, 3, 0, tzinfo=UTC)
+    with session_scope() as session:
+        session.execute(delete(EnsembleStat))
+        ens = model_id(session, "ecmwf_ifs_ens")
+        key = session.execute(select(PointRow.point_key).limit(1)).scalar_one()
+        row = {
+            "point_id": key,
+            "valid_time": init + timedelta(hours=6),
+            "variable": "precip_mm",
+            "n_members": 50,
+            "mean": 1.2,
+            "std": 0.8,
+            "p10": 0.1,
+            "p25": 0.4,
+            "p50": 1.0,
+            "p75": 1.8,
+            "p90": 2.5,
+            "exceed_probs": {"ge_1": 0.56},
+            "extraction": "bilinear_lsm",
+            "extra": {"period_h": 3},
+        }
+        first = store_stats(session, ens, init, [row, {**row, "point_id": "district:yok:0"}])
+        again = store_stats(session, ens, init, [{**row, "mean": 1.5}])
+        session.commit()
+        stored = session.execute(select(EnsembleStat)).scalars().all()
+    assert (first, again, len(stored)) == (1, 1, 1)  # bilinmeyen nokta atlanır, tekrar günceller
+    assert stored[0].mean == pytest.approx(1.5) and stored[0].extra == {"period_h": 3}
+    assert stored[0].extraction == "bilinear_lsm" and stored[0].exceed_probs == {"ge_1": 0.56}

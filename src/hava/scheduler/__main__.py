@@ -14,6 +14,7 @@ from datetime import UTC, datetime
 
 import structlog
 from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED, JobExecutionEvent
+from apscheduler.executors.pool import ThreadPoolExecutor
 from apscheduler.schedulers.blocking import BlockingScheduler
 from sqlalchemy.dialects.postgresql import insert
 
@@ -71,7 +72,9 @@ class FailureWatch:
 
 
 def build_scheduler() -> BlockingScheduler:
-    scheduler = BlockingScheduler(timezone="UTC")
+    # Model işleri uzun sürer; kendi havuzlarında çalışır ki kalp atışı ve METAR işleri beklemesin.
+    executors = {"default": ThreadPoolExecutor(10), "models": ThreadPoolExecutor(len(ADAPTERS))}
+    scheduler = BlockingScheduler(timezone="UTC", executors=executors)
     now = datetime.now(UTC)
     common = {"max_instances": 1, "coalesce": True, "misfire_grace_time": 120}
     scheduler.add_job(heartbeat, "interval", minutes=1, id="heartbeat", next_run_time=now, **common)
@@ -87,6 +90,7 @@ def build_scheduler() -> BlockingScheduler:
             minute="*/10",
             args=[code],
             id=f"collect_model:{code}",
+            executor="models",
             next_run_time=now,
             **common,
         )

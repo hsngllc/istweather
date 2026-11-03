@@ -206,6 +206,9 @@ class EnsembleStat(Base):  # ★
     p75: Mapped[float | None] = mapped_column(REAL)
     p90: Mapped[float | None] = mapped_column(REAL)
     exceed_probs: Mapped[dict[str, Any]] = mapped_column(server_default=text("'{}'::jsonb"))
+    # Noktaya indirme yöntemi ve satır ayrıntısı (yağış aralığı, hamle tanımı) — izlenebilirlik.
+    extraction: Mapped[str] = mapped_column(String(32), server_default="")
+    extra: Mapped[dict[str, Any]] = mapped_column(server_default=text("'{}'::jsonb"))
 
 
 class VerificationMetric(Base):
