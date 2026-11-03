@@ -219,6 +219,14 @@ Her dosya tek alan; `.idx` yok (gerek de yok). Sabit alanlar (`HSURF`, `FR_LAND`
 
 **Lisans netleştirmesi (2026-11-01)** ✅: data.gouv.fr API'sinde her iki paket veri kümesinin lisansı `lov2` (Licence Ouverte / Open Licence 2.0), yayıncı Météo-France. Licence Ouverte 2.0 metni yeniden kullanımı "à des fins commerciales ou non" serbest bırakıyor; uyarlama, türetme ve başka bilgilerle birleştirme açıkça izinli ([LO 2.0](https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf)). Météo-France açık veri sayfası: "Sans redevance sous Licence Ouverte d'Etalab", kaynak "Météo-France". **CC BY-NC yalnız TIGGE'deki Météo-France verisi (PEARP ensemble) için geçerli**; o kopya kullanılmaz. Sonuç: ARPEGE canlıda kalır, geçmişi olmadığı için "yetersiz geçmiş".
 
+**Faz 3 bulguları (2026-11-03, paket dosyalarından ✅)**
+- 0.1° paketler ve boyutları (03 00z, çalıştırma başına): SP1 668 MB, SP2 649 MB, IP1 2,4 GB, IP2 2,6 GB, IP3 0,6 GB, IP4 1,5 GB, HP1 3,9 GB, HP2 2,4 GB; her paket 9 dosya (`000H012H` … `085H096H`, `097H102H`). 0–102 sa saatlik (SP1 0–12 dosyası 13 adım).
+- SP1 (26 alan, 0–12 dosyasında 325 mesaj): `2t`, `2r`, `10u/10v`, `10si`, `10wdir`, `max_i10fg` (0/2/22, `stepType=max`, aralık `N-1 – N` → son 1 sa), `max_10efg/nfg`, `prmsl`, **toplam bulut 0/6/1** (eccodes adı "unknown"; değerler %31–100; WMO kod tablosu 4.2 "Total cloud cover"), `tp`/`cp`/`lsp`/`tsnowp`/`csfwe`/`lsfwe`/`tirf` (başlangıçtan beri `0-N`, kg m⁻²; 0. adımda yok), `ssrd`, `sd` ve yerel kodlar 2/3/192–254, 0/7/199.
+- SP2 (28 alan): `2d`, `lcc`/`mcc`/`hcc` (%), `min_vis` (0/19/0, `stepType=min`, son 1 sa en düşük görüş, m; ~100 m–20 km), `h` (0/3/6, **model arazi yüksekliği**, yalnız 0. adım), `min_2t`/`max_2t` (3 saatlik), `ptype` (0/1/19, `avg` ve `max`; değerler 0, 1, 11, **201** — yerel 201'in anlamı teyit edilemedi ❓ → kullanılmıyor), `blh`, `CAPE_INS` vb.
+- Sabit alanlar: `https://static.data.gouv.fr/resources/champs-constant-1/20250217-090659/constant-eurat01.grib2` (data.gouv.fr kaynağı "Champs CONSTANT EURAT01"; çalıştırma dizininde yok). İçinde `h` (eski orografi; SP2 `h` ile korelasyon 0,994, ortalama fark 24 m) ve `lsm` — `lsm` `grid_second_order` ile kodlu ve eccodes 2.50 −256…253 üretiyor → **kullanılamaz**. Kara-deniz maskesi IFS 0.1° `lsm`'den (EURAT01 düğümleri IFS 0.1° düğümleriyle çakışıyor).
+- Hız: OVH S3'ten ~3–6 MB/sn; paketler bütün indiriliyor (Range ile index kurmak mesaj başına sıralı istek gerektiriyor).
+- 2024 tarihli `description-paquets-modele-arpege.pdf` güncel paket içeriğiyle uyuşmuyor (ör. ptype, min_vis yok).
+
 **Saklama** ✅: S3 ~15 gün (2026-10-17 → 2026-10-31 gözlendi; resmî değil ❓). API paketleri 24 saat kayan. **Ücretsiz arşiv yok**; resmî arşiv talep üzerine `vd@meteo.fr` (EURAT01 2010-04-06'dan; ücret ❓). AWS `mf-nwp-models` bucket'ı ölü (yalnız 2019'dan 18 statik dosya) ✅.
 
 ### 2.6 UK Met Office — Global Deterministic 10 km (+ MOGREPS-G)

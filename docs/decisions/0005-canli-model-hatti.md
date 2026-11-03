@@ -73,6 +73,18 @@ GRIB2 mesajları alan olarak bölünemez: İstanbul için bile her parametrenin 
 - Görüş doğrulamasında METAR `9999` "≥ 10 km" demek (sansürlü); GFS üst sınırı ~24 km. Faz 5'te
   karşılaştırma bu eşikle yapılmalı.
 
+## Météo-France ARPEGE özel notları (2026-11-03)
+- Açık paketler (OVH S3, Licence Ouverte 2.0); index yok → SP1 ve SP2 dosyaları bütün indirilir
+  (~1,3 GB/çalıştırma), diske akıtılır, mesajlar kimlikle (discipline/kategori/numara + adım türü +
+  seviye) seçilir. 850 hPa sıcaklığı alınmaz (IP1'in tamamı 2,4 GB).
+- Hamle son 1 sa en yüksek (`gust_definition = max_1h`), görüş son 1 sa en düşük
+  (`extra.visibility_definition = min_1h`); yağış tipi alınmaz (yerel kod 201 teyit edilemedi).
+- Kara-deniz maskesi: sabit dosyadaki `lsm` çözülemiyor → en yeni IFS 0.1° kara oranı, düğümleri
+  1e-4° içinde çakışırsa (`RunCollector.add_static_aligned`); kaynak `model_runs.files.lsm_source`.
+- İlk canlı çalıştırma (2026-11-03 00z, Docker): 18 dosya, 1,32 GB, 103 adım, 1.178 mesaj, 270 sn,
+  4.326 satır; 42 noktanın hepsi maskeli bilineer. Sağlama (00–07 UTC, METAR, 21 eşleşme): sıcaklık
+  hatası 1,1 °C, basınç 0,2 hPa.
+
 ## ECMWF AIFS Single özel notları (2026-11-03)
 - IFS adaptörü "ürün" yapısıyla genelleştirildi (`ecmwf.Product`): yol, dosya bölünmesi, alanlar,
   birim çarpanları, adımlar ve hamle tanımı ürün başına. AIFS: tek dosya, 0–360 sa 6'şar, yağış
@@ -103,7 +115,8 @@ GRIB2 mesajları alan olarak bölünemez: İstanbul için bile her parametrenin 
 
 ## Sonuçlar
 - İndirme hacmi çalıştırma başına ~1,2–1,5 GB (IFS 0.1°), ~0,1 GB (AIFS), ~1,2 GB (GFS), ~4–4,7 GB
-  (ICON; index olmadığından tüm küre), ~1 GB (ICON-EU) → günde ~33 GB. Ensemble'larda çok daha fazla olacak → ensemble'da
+  (ICON; index olmadığından tüm küre), ~1 GB (ICON-EU), ~1,3 GB (ARPEGE) → günde ~38 GB
+  (deterministik; ensemble'lar için ADR-0006). Ensemble'larda çok daha fazla olacak → ensemble'da
   adım/parametre sınırlaması ayrıca kararlaştırılacak.
 - Kanonik ad ve birim sözleşmesi bozulursa tüm modeller etkilenir; testler (`tests/test_pipeline.py`)
   bu sözleşmeyi sabitler.

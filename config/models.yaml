@@ -133,6 +133,9 @@ models:
     internal_only: false
     meta:
       history: "yetersiz geçmiş (ücretsiz arşiv yok)"
+      gust_definition: "FF_RAF (max_i10fg): son 1 sa max"
+      visibility_definition: "min_vis: son 1 sa en düşük"
+      stale_hours: 12
   - code: ukmo_global_10km
     provider: UK Met Office
     kind: deterministic
