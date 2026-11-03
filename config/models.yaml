@@ -83,14 +83,18 @@ models:
     internal_only: false
     meta:
       gust_definition: "vmax_10m: son 60 dk max"
+      stale_hours: 12
   - code: dwd_icon_eu
     provider: DWD
     kind: deterministic
-    resolution: "6.5 km (#62 native; regular 0.0625° 2026-11-30'da bitiyor)"
+    resolution: "~6.5 km (#62 native üçgen)"
     license: "CC BY 4.0"
     attribution_text: "Based on data from Deutscher Wetterdienst (Source: Deutscher Wetterdienst), processed and combined with other models."
     active: true
     internal_only: false
+    meta:
+      gust_definition: "vmax_10m: son 60 dk max"
+      stale_hours: 12
   - code: dwd_icon_eps
     provider: DWD
     kind: ensemble

@@ -166,7 +166,7 @@ Yayın (portal zaman damgası, UTC): IFS 0.25 00z 07:34, 06z 12:27, 12z 19:34, 1
 Her dosya tek alan; `.idx` yok (gerek de yok). Sabit alanlar (`HSURF`, `FR_LAND`, `CLAT/CLON`) her çalıştırmada yayınlanıyor.
 
 **Izgara ve İstanbul** ✅
-- ICON global yalnız ikosahedral (#26 R03B07, 13 km); regular-lat-lon hiç yok. ICON-EU eski regular 0.0625° alanı 23.5°B–62.5°D / 29.5–70.5°K (indirilen dosyanın başlığından ✅) → İstanbul kapsanıyor. v1 native #62 "genişletilmiş"; doğu kenarı doğrudan doğrulanmadı ⚠️ (eski alanın doğu sınırı 62.5°D olduğundan İstanbul'un kapsanması beklenir).
+- ICON global yalnız ikosahedral (#26 R03B07, 13 km); regular-lat-lon hiç yok. ICON-EU eski regular 0.0625° alanı 23.5°B–62.5°D / 29.5–70.5°K (indirilen dosyanın başlığından ✅) → İstanbul kapsanıyor. v1 native #62 "genişletilmiş": 768.608 hücre, CLAT/CLON 24,9–71,6°K / −25,5–64,0°D ✅ (2026-11-03, indirilen dosyadan) → İstanbul kapsanıyor.
 - Nokta çıkarımı: `CLAT/CLON` ile 39 ilçe + istasyon için en yakın hücre/komşu ağırlık tablosu bir kez kurulur. Grid dosyaları `/lib/cdo` silindikten sonra [MPI dwd_grids.xml](http://icon-downloads.mpimet.mpg.de/dwd_grids.xml)'de; yeniden ızgaralama: [DWD regrid](https://gitlab.opencode.de/dwd/open-data/regrid-native-icon-grid).
 
 **Çalıştırmalar** ✅ (listeleme; v1 zaman damgaları)
@@ -181,6 +181,16 @@ Her dosya tek alan; `.idx` yok (gerek de yok). Sabit alanlar (`HSURF`, `FR_LAND`
 Üye sayısı: ICON-EPS ve ICON-EU-EPS **40** ✅ (GRIB `numberOfForecastsInEnsemble=40`).
 
 **Saklama** ✅: ~24 saat; kaçırılan çalıştırma geri gelmez. **Resmî ücretsiz tahmin arşivi yok** (yalnız reanaliz `/REA/ICON-DREAM-*`).
+
+**Faz 3 bulguları (2026-11-03, gerçek dosyalardan ✅)**
+- Adımlar dizin listesinden: ICON 00/12z 0–78 saatlik + 81–180 3 saatlik (113 dosya), 06/18z 120 sa'e kadar (93); ICON-EU ana çalıştırmalar 93 dosya (120 sa), 03/09/15/21z kısa çalıştırmalar 0–51 sa.
+- GRIB: `gridType=unstructured_grid`, `packingType=grid_ccsds`, `uuidOfHGrid` CLAT/CLON ile alanlarda aynı (ICON `a27b8de6…`, ICON-EU `832c1507…`); `numberOfGridUsed` 26 / 62. ICON 2.949.120 hücre. Çözme alan başına 8–34 ms (eccodes 2.50 + libaec).
+- Dosya boyutları (tek alan, tüm küre/alan): ICON ~3–4,8 MB, ICON-EU ~0,8–1,1 MB; birikimli alanlar 0. adımda 197 baytlık sabit sıfır mesajı.
+- **ICON global `VMAX_10M` 0. adımda yok (404)**; ICON-EU'da var. Hamle `max_i10fg`, `stepType=max`, aralık "0-1" → son 1 saat ([DWD ICON Database Reference 2.5.6](https://www.dwd.de/DWD/forschung/nwv/fepub/icon_database_main.pdf) §6.4: "Maxima are collected over hourly intervals").
+- `RAIN_CON` eccodes'ta `crr`, birim "kg m**-2 s**-1" görünüyor; ama `stepType=accum`, aralık "0-1" ve ICON'da hiçbir hücrede `TOT_PREC`'i aşmıyor (ICON-EU'da 16 hücrede ≤ 0,13 mm paketleme farkı) → başlangıçtan beri birikim (kg m⁻²). Belge: `TOT_PREC = RAIN_GSP + SNOW_GSP + RAIN_CON + SNOW_CON`, hepsi "accumulated since model start".
+- `WW`: "Significant weather of the last hour"; alabileceği değerler 0–3, 45, 48, 51–57, 61–67, 71–77, 80–86, 95, 96 (Database Reference Tablo 6.1, WMO 0 20 003 alt kümesi). ICON global'de 96 da görüldü (belge "yalnız ICON-D2" diyor).
+- Kırpma (bölge kutusu + 1°): ICON 687 hücre, ICON-EU 2.751 hücre.
+- v1 dizin adları: `T_2M`, `TD_2M`, `TOT_PREC`, `RAIN_CON`, `SNOW_CON`, `SNOW_GSP`, `U_10M`, `V_10M`, `VMAX_10M`, `PMSL`, `CLCT`, `CLCL`, `WW`, `T` (850 hPa: `lvt1/100/lv1/85000`), sabitler `CLAT`, `CLON`, `FR_LAND`, `HSURF` (yalnız 0. adım). ICON-EU'da ek olarak `CEILING`, `SNOWLMT` var; `VIS` hiçbirinde yok.
 
 ### 2.5 Météo-France — ARPEGE
 
@@ -534,7 +544,7 @@ Tüm metinler `models.attribution_text` ve `/api/v1/meta/sources`'a taşınacak 
 2. ECMWF ToU'daki "service agreement" maddesinin reklam gelirli bir sitenin anonim açık veri indirmesine uygulanıp uygulanmadığı (ECMWF'ye sorulabilir).
 3. `ecmwf-opendata` 0.3.35'in 50r1 sonrası `type="cf"` davranışı; 0.1°'deki "extra fields"; ENS pf yerel çözünürlüğünün ~9 km olduğu (çıkarım ⚠️).
 4. NOAA'nın resmî atıf cümlesi; NODD bucket'larının resmî saklama politikası; NOMADS engelleme eşikleri; GFSv17 ve GEFSv13'ün kesin tarihleri ve yeni dosya adları; GFS `TMP:surface` deniz üstünde skin mi foundation SST mi; `LAND` ikili mi kesirli mi.
-5. DWD ICON-EU (#62) ve ICON-EU-EPS (#63) native alanlarının doğu kenarı (İstanbul kapsamı çıkarım ⚠️); opendata.dwd.de fair-use kuralları.
+5. ~~ICON-EU (#62) doğu kenarı~~ ✅ 64°D (2026-11-03); ICON-EU-EPS (#63) native alanının doğu kenarı (İstanbul kapsamı çıkarım ⚠️); opendata.dwd.de fair-use kuralları.
 6. Météo-France S3 açık paketlerinin resmî saklama süresi; portal WCS katmanlarının parametre seti; yerel GRIB kodlarının adları; ARPEGE T850'nin başlıkta doğrulanması; resmî arşivin ücreti.
 7. UKMO S3 oran sınırı; `temperature_at_surface`'in denizde SST'ye eşit olup olmadığı; `wind_gust_at_10m` tanımında iki PDF arasındaki tutarsızlık; Planetary Computer aynasının 2024 kapsamı; MOGREPS-G tam değişken listesi.
 8. **UKMO CC BY-SA'nın birleşik tahmine etkisi** — Met Office'in resmî açıklaması bulunamadı (hukuki görüş gerekli).

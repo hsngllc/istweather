@@ -60,3 +60,12 @@ def test_split_concatenated_messages() -> None:
     assert [decode_message(p).end_step_h for p in parts] == [3, 6]
     with pytest.raises(GribError):
         list(split_messages(a[:-10]))
+
+
+def test_decode_unstructured_grid_keeps_flat_values_and_grid_id() -> None:
+    from tests.test_icon import GRID_ID, synthetic_unstructured
+
+    f = decode_message(synthetic_unstructured(np.arange(7, dtype=float), step=3))
+    assert f.values.shape == (7,) and f.lat.size == 0 and f.lon.size == 0
+    np.testing.assert_allclose(f.values, np.arange(7), atol=1e-4)
+    assert f.meta["grid_id"] == GRID_ID and f.end_step_h == 3.0

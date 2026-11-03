@@ -42,6 +42,7 @@ class Settings(BaseSettings):
 
     # Model verisi (spec §5.1). Kırpma kutusu bölge kutusu + pay (nokta komşulukları için).
     ecmwf_base_url: str = "https://data.ecmwf.int/forecasts"
+    dwd_base_url: str = "https://opendata.dwd.de/weather/nwp/v1/m"  # yalnız ~24 sa saklar
     model_max_lead_h: int = 168
     model_crop_margin_deg: float = 1.0
     model_download_workers: int = 8

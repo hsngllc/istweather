@@ -1,8 +1,9 @@
 """Worker giriş noktası: ``python -m hava.scheduler``.
 
-İşler: kalp atışı (1 dk), canlı METAR (5 dk), kaynak tazeliği (5 dk), canlı model toplama (10 dk),
-IEM boşluk doldurma ve kırpılmış model dosyası temizliği (günlük). Bir iş üst üste
-``FAILURE_THRESHOLD`` kez hata verirse bildirim gider; düzelince tekrar bildirilir (spec §14).
+İşler: kalp atışı (1 dk), canlı METAR (5 dk), kaynak tazeliği (5 dk), model başına canlı toplama
+(10 dk; her model ayrı iş), IEM boşluk doldurma ve kırpılmış model dosyası temizliği (günlük).
+Bir iş üst üste ``FAILURE_THRESHOLD`` kez hata verirse bildirim gider; düzelince tekrar
+bildirilir (spec §14).
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ from sqlalchemy.dialects.postgresql import insert
 
 from hava.db.models import SourceHealth
 from hava.db.session import session_scope
-from hava.ingest.models.jobs import collect_models, prune_grib
+from hava.ingest.models.jobs import ADAPTERS, collect_model, prune_grib
 from hava.ingest.obs.iem import fill_recent
 from hava.ingest.obs.jobs import collect_metar
 from hava.ops.health import check_sources
@@ -79,9 +80,16 @@ def build_scheduler() -> BlockingScheduler:
     )
     scheduler.add_job(check_sources, "cron", minute="2-59/5", id="check_sources", **common)
     scheduler.add_job(fill_recent, "cron", hour=3, minute=15, id="iem_fill_recent", **common)
-    scheduler.add_job(
-        collect_models, "cron", minute="*/10", id="collect_models", next_run_time=now, **common
-    )
+    for code in ADAPTERS:
+        scheduler.add_job(
+            collect_model,
+            "cron",
+            minute="*/10",
+            args=[code],
+            id=f"collect_model:{code}",
+            next_run_time=now,
+            **common,
+        )
     scheduler.add_job(prune_grib, "cron", hour=2, minute=30, id="prune_grib", **common)
     scheduler.add_listener(FailureWatch(), EVENT_JOB_ERROR | EVENT_JOB_EXECUTED)
     return scheduler

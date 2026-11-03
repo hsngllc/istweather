@@ -25,11 +25,19 @@ GRIB2 mesajları alan olarak bölünemez: İstanbul için bile her parametrenin 
   ağırlıklar yeniden ölçeklenir; iç 2×2'de kara yoksa 4×4'te en yakın kara hücresi; yöntem nokta
   başına `extra.point_method`'a yazılır. Sıcaklığa γ = 6,5 °C/km ile yükseklik düzeltmesi; düzeltme ve
   model arazi yüksekliği `extra`'da. Çiy noktası düzeltilmez (sıcaklığı aşarsa kırpılır); bağıl nem
-  düzeltmesiz model T/Td'den. Kategorik alanlar (yağış tipi) seçilen kara hücresinden.
-  `extraction = bilinear_lsm_lapse`.
+  düzeltmesiz model T/Td'den. Kategorik alanlar (yağış tipi) seçilen kara hücresinden, ham kodu
+  `extra.ptype_code`'da. `extraction = bilinear_lsm_lapse`.
+- **Üçgen ızgara (ICON, 2026-11-03):** yeniden ızgaralama yapılmaz (ek yumuşatma ve bağımlılık
+  getirir). Kutudaki hücreler `CLAT/CLON`'dan indisle seçilir; hücre merkezlerinin Delaunay
+  üçgenlemesinde noktayı içeren üçgenin köşelerinden barisentrik (doğrusal) ağırlık — düzenli
+  ızgaradaki bilineerin karşılığı. Kara-deniz maskesi aynı kuralla (köşelerde kara yoksa en yakın 12
+  hücrede en yakın kara hücresi). `extraction = barycentric_lsm_lapse`. Kırpılmış NetCDF'te boyut
+  `cell`, koordinatlar `lat(cell)`, `lon(cell)`, öznitelik `grid_id`. Bağımlılık: `scipy`.
 - **Durum makinesi:** `model_runs` pending → downloading → extracted → loaded | failed; en fazla 3
-  deneme; çalıştırma "tamam" sayılması için son adımın index'i yayımlanmış olmalı. Worker 10 dakikada
-  bir son 72 saatteki yüklenmemiş çalıştırmaları eskiden yeniye işler (çağrı başına en fazla 2).
+  deneme; çalıştırma "tamam" sayılması için son adımın dosyaları yayımlanmış olmalı. Ortak akış
+  `hava.ingest.models.runner`'da. Worker'da **her model ayrı iş** (`collect_model:<kod>`, 10 dk):
+  yavaş bir model diğerini bekletmez, hata bildirimi model adıyla gelir. Her iş son 72 saatteki
+  (DWD için 30 saat) yüklenmemiş çalıştırmaları eskiden yeniye işler (çağrı başına en fazla 2).
 - **Tazelik:** `models.meta.stale_hours` olan modeller `source_health`'te `model:<kod>` olarak izlenir.
 
 ## ECMWF IFS özel notları
@@ -41,8 +49,30 @@ GRIB2 mesajları alan olarak bölünemez: İstanbul için bile her parametrenin 
 - Hamle parametresi adıma göre değişiyor (index'ten teyit): 0–90 sa `10fg` (son 1 sa), 93–144 sa
   `10fg3` (son 3 sa), 150+ sa `10fg` (son 6 sa). 0. adımda `tp` ve `10fg` mesajları boş.
 
+## DWD ICON / ICON-EU özel notları (2026-11-03)
+- Kaynak opendata.dwd.de v1 şeması (eski şema 30.11.2026'da kapanıyor); yalnız native üçgen ızgara.
+  Index yok: her dosya tek alan, bütünüyle iner (ICON ~3–4,8 MB, ICON-EU ~1 MB). DWD ~24 saat tutar.
+- ICON-EU yalnız 00/06/12/18z (120 sa); 03/09/15/21z kısa çalıştırmalar (51 sa) şimdilik alınmıyor.
+- Değişken eşlemesi ve birikim/hamle tanımları `docs/data-sources.md` §2.4 "Faz 3 bulguları"nda;
+  konvektif = RAIN_CON + SNOW_CON, kar = SNOW_CON + SNOW_GSP, hamle son 1 sa (ICON global'de
+  0. adımda yok), yağış tipi `WW`'den.
+- Görüş yok (v1'de `VIS` yayımlanmıyor).
+- İlk canlı çalıştırmalar (Docker, iki model aynı anda):
+
+  | Çalıştırma | Model | Adım | Dosya | İndirme | Süre | Satır | Kırpılmış dosya |
+  |---|---|---|---|---|---|---|---|
+  | 2026-11-02 06z | ICON | 93 | 1.305 | 4,04 GB | 1.533 sn | 3.906 | 1,7 MB |
+  | 2026-11-02 06z | ICON-EU | 93 | 1.306 | 1,05 GB | 1.477 sn | 3.906 | 6,7 MB |
+  | 2026-11-02 12z | ICON | 109 | — | 4,76 GB | 369 sn | 4.578 | 2,0 MB |
+  | 2026-11-02 12z | ICON-EU | 93 | — | 1,06 GB | 340 sn | 3.906 | 6,8 MB |
+
+  Süreyi indirme belirliyor ve DWD hızı değişken (ilk turda toplam ~3,4 MB/sn, ikincide ~16 MB/sn);
+  çözme alan başına ~58 ms, işlemci ortalaması tek çekirdeğin %10'u. Worker belleği en yüksek
+  1,09 GB (iki ICON işi aynı anda). 6 saatlik çevrimde yeterli; sunucuda yeniden ölçülecek.
+
 ## Sonuçlar
-- İndirme hacmi çalıştırma başına ~1,2–1,5 GB (IFS 0.1°); ensemble'larda çok daha fazla olacak →
-  ensemble'da adım/parametre sınırlaması ayrıca kararlaştırılacak.
+- İndirme hacmi çalıştırma başına ~1,2–1,5 GB (IFS 0.1°), ~4–4,7 GB (ICON; index olmadığından tüm
+  küre), ~1 GB (ICON-EU) → günde ~28 GB. Ensemble'larda çok daha fazla olacak → ensemble'da
+  adım/parametre sınırlaması ayrıca kararlaştırılacak.
 - Kanonik ad ve birim sözleşmesi bozulursa tüm modeller etkilenir; testler (`tests/test_pipeline.py`)
   bu sözleşmeyi sabitler.

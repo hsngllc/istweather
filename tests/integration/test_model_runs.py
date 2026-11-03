@@ -87,7 +87,7 @@ def test_model_freshness(mid: int) -> None:
         with session_scope() as session:
             out = {t.source: t.stale for t in evaluate(session, at, settings)}
             session.commit()
-        return {k: v for k, v in out.items() if k.startswith("model:")}
+        return {k: v for k, v in out.items() if k == f"model:{MODEL}"}
 
     # Hiç yüklenmiş çalıştırma yok → bayat olarak bildirilir (METAR'daki "veri yok" ile aynı).
     assert model_transitions(now) == {f"model:{MODEL}": True}
