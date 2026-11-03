@@ -51,6 +51,13 @@ konteynerlere yalnız kaynak kod bind mount edilir. Repo `C:\istweather` altınd
 
 Satır sonları `.gitattributes` ile LF'ye sabitlenmiştir (Linux konteynerleri için).
 
+## Sunucu (üretim)
+
+Kurulum ve bilgisayardan taşıma adımları: [docs/sunucu-kurulumu.md](docs/sunucu-kurulumu.md). Sunucuda
+`.env`'deki `COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml` ile her `docker compose` komutu
+üretim ayarıyla çalışır. Taşıma `scripts/tasima-paketle.sh` (bilgisayarda) ve
+`scripts/tasima-yukle.sh` (sunucuda) ile yapılır; yükleme satır sayılarını karşılaştırarak doğrular.
+
 ## Yerel Python ortamı (Docker olmadan testler)
 
 ```

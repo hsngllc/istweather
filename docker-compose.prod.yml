@@ -1,13 +1,21 @@
 # Üretim katmanı. Kullanım:
 #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 # Farklar: kod imajın içinde (bind mount yok), reload yok, veritabanı dışarı açık değil,
-# Caddy ile otomatik HTTPS, yedekleme servisi etkin, yeniden başlatma politikaları.
+# Caddy ile otomatik HTTPS, yedekleme servisi etkin, yeniden başlatma politikaları, log rotasyonu.
+
+# Docker'ın varsayılan json-file sürücüsü logları döndürmez (spec §14: rotasyon açık).
+# local sürücüsü varsayılan olarak 20 MB × 5 dosya tutar ve sıkıştırır; docker compose logs çalışır.
+x-logging: &logging
+  driver: local
+
 services:
   db:
+    logging: *logging
     ports: !reset []
     restart: unless-stopped
 
   migrate:
+    logging: *logging
     environment:
       HAVA_ENV: prod
     volumes: !override
@@ -15,6 +23,7 @@ services:
       - parquet_data:/data/parquet
 
   api:
+    logging: *logging
     command:
       - uvicorn
       - hava.api.app:app
@@ -34,6 +43,7 @@ services:
     restart: unless-stopped
 
   worker:
+    logging: *logging
     environment:
       HAVA_ENV: prod
     volumes: !override
@@ -42,10 +52,12 @@ services:
     restart: unless-stopped
 
   backup:
+    logging: *logging
     profiles: !reset []
     restart: unless-stopped
 
   caddy:
+    logging: *logging
     image: caddy:2.11.6-alpine
     env_file: .env
     ports:
