@@ -17,9 +17,10 @@ FAKE_TOKEN = "123456:TEST-ONLY-TOKEN"  # test değeri, gerçek değil
 
 
 def _settings(**kw: Any) -> Settings:
+    """Yerel ``.env`` okunmaz (gerçek kanallara gönderim olmasın)."""
     base: dict[str, Any] = {"database_url": "postgresql+psycopg://x@localhost/x"}
     base.update(kw)
-    return Settings(**base)
+    return Settings(_env_file=None, **base)  # type: ignore[call-arg]
 
 
 def test_without_channels_only_logs() -> None:
