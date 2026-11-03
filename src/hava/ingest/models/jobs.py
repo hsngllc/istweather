@@ -10,7 +10,7 @@ from typing import Any
 import structlog
 
 from hava.db.session import session_scope
-from hava.ingest.models import ecmwf, icon
+from hava.ingest.models import ecmwf, gfs, icon
 from hava.ingest.models.pipeline import prune_files
 from hava.ops.health import record_error, record_success
 from hava.settings import get_settings
@@ -21,6 +21,7 @@ log = structlog.get_logger()
 ADAPTERS: dict[str, Callable[[], list[dict[str, Any]]]] = {
     ecmwf.IFS.code: ecmwf.collect_ifs,
     ecmwf.AIFS_SINGLE.code: ecmwf.collect_aifs_single,
+    gfs.MODEL_CODE: gfs.collect,
     icon.ICON.code: icon.collect_icon,
     icon.ICON_EU.code: icon.collect_icon_eu,
 }

@@ -51,7 +51,27 @@ GRIB2 mesajları alan olarak bölünemez: İstanbul için bile her parametrenin 
   1,49 GB indirme, 107 sn, 2.058 satır, kırpılmış dosya 0,99 MB. 42 noktanın tamamında
   `lsm_bilinear`; yükseklik düzeltmesi −0,7…+0,6 °C.
 - Hamle parametresi adıma göre değişiyor (index'ten teyit): 0–90 sa `10fg` (son 1 sa), 93–144 sa
-  `10fg3` (son 3 sa), 150+ sa `10fg` (son 6 sa). 0. adımda `tp` ve `10fg` mesajları boş.
+  `10fg3` (son 3 sa), 150+ sa `10fg` (son 6 sa). 0. adımda `tp/cp/sf/10fg` sabit sıfır mesajları:
+  birikimlerde başlangıç değeri olarak kullanılır, **hamle alınmaz** (2026-11-03 düzeltmesi: ilk 14
+  çalıştırmada 0. saate "0 m/sn" hamle yazılmıştı; 588 satır boşaltıldı).
+
+## Ortak kurallar (2026-11-03 eklemeleri)
+- Birikimli değişkenin 0. adımda mesajı yoksa (GFS) başlangıç değeri tanım gereği 0 alınır; ilk aralık
+  kaybolmaz.
+- Kaynak bir alanı başlangıç anında "değer yok" anlamında sabit doldurursa o alan 0. adımda alınmaz
+  (IFS `10fg`). Kaynak gerçek değer veriyorsa alınır (ICON-EU `VMAX_10M`).
+- Görüş (`vis`, m) kanonik değişkenlere eklendi → `visibility_m` (şimdilik yalnız GFS).
+
+## NOAA GFS özel notları (2026-11-03)
+- Kaynak AWS NODD (`noaa-gfs-bdp-pds`); `.idx`'ten byte-range. Kayıt seçimi değişken + seviye +
+  zaman metniyle: birikimde sürekli `0-N` kaydı, kategorik bayraklarda anlık kayıt.
+- Yağış tipi dört kategorik bayraktan ECMWF ptype kodlarına çevrilir (donan yağmur > buz taneleri >
+  kar+yağmur > kar > yağmur > yok); `extra.ptype_code` bu koddur. Kar miktarı yok (su eşdeğeri
+  alanı yayımlanmıyor). Hamle anlık (`gust_definition = instant`).
+- İlk canlı çalıştırma (2026-11-03 00z, Docker): 137 adım, 2.178 mesaj, 1,30 GB, 243 sn, 5.754
+  satır; worker belleği en yüksek 0,35 GB, işlemci ortalaması tek çekirdeğin %36'sı.
+- Görüş doğrulamasında METAR `9999` "≥ 10 km" demek (sansürlü); GFS üst sınırı ~24 km. Faz 5'te
+  karşılaştırma bu eşikle yapılmalı.
 
 ## ECMWF AIFS Single özel notları (2026-11-03)
 - IFS adaptörü "ürün" yapısıyla genelleştirildi (`ecmwf.Product`): yol, dosya bölünmesi, alanlar,
@@ -82,8 +102,8 @@ GRIB2 mesajları alan olarak bölünemez: İstanbul için bile her parametrenin 
   1,09 GB (iki ICON işi aynı anda). 6 saatlik çevrimde yeterli; sunucuda yeniden ölçülecek.
 
 ## Sonuçlar
-- İndirme hacmi çalıştırma başına ~1,2–1,5 GB (IFS 0.1°), ~0,1 GB (AIFS), ~4–4,7 GB (ICON; index
-  olmadığından tüm küre), ~1 GB (ICON-EU) → günde ~28 GB. Ensemble'larda çok daha fazla olacak → ensemble'da
+- İndirme hacmi çalıştırma başına ~1,2–1,5 GB (IFS 0.1°), ~0,1 GB (AIFS), ~1,2 GB (GFS), ~4–4,7 GB
+  (ICON; index olmadığından tüm küre), ~1 GB (ICON-EU) → günde ~33 GB. Ensemble'larda çok daha fazla olacak → ensemble'da
   adım/parametre sınırlaması ayrıca kararlaştırılacak.
 - Kanonik ad ve birim sözleşmesi bozulursa tüm modeller etkilenir; testler (`tests/test_pipeline.py`)
   bu sözleşmeyi sabitler.

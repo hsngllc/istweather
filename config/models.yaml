@@ -66,6 +66,7 @@ models:
     meta:
       gust_definition: "GUST anlık tanı alanı"
       accumulation: "APCP: 6 saatlik kova + 0-N sürekli kayıt"
+      stale_hours: 12
   - code: ncep_gefs
     provider: NOAA/NCEP
     kind: ensemble

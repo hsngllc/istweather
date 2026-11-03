@@ -106,7 +106,7 @@ Yayın (portal zaman damgası, UTC): IFS 0.25 00z 07:34, 06z 12:27, 12z 19:34, 1
 **Faz 3 bulguları (2026-11-02)** ✅ — canlı adaptör bunlara göre yazıldı ([ADR-0005](decisions/0005-canli-model-hatti.md)):
 - AWS yansısı tek bir `.index` isteğine bile `503 SlowDown` döndürdü → canlıda portal (`data.ecmwf.int`) kullanılıyor; portal index'leri < 0,5 sn'de geliyor.
 - IFS 0.1° 06z koşusu 144 saatte bitiyor (150h index'i yok); 00z'de 150/168h var.
-- Hamle parametresi: 0–90 sa `10fg`, 93–144 sa `10fg3`, 150+ sa `10fg` (03/06/93/96/144/150/168h index'lerinden). 0. adımda `tp` ve `10fg` mesajları boş (`_length` 0); `z` (orografi) yalnız 0. adımda.
+- Hamle parametresi: 0–90 sa `10fg`, 93–144 sa `10fg3`, 150+ sa `10fg` (03/06/93/96/144/150/168h index'lerinden). 0. adımda `tp`, `cp`, `sf` ve `10fg` 224 baytlık **sabit sıfır** mesajları (2026-11-03 düzeltmesi: önceki not "`_length` 0" diyordu, yanlış); `10fg` 0. adımda tanımsız olduğundan alınmaz, birikimlerde 0 başlangıç değeridir. `z` (orografi) yalnız 0. adımda.
 - 0.1° mesaj boyutları (06z, MB): `2t` 1,4 · `2d` 1,4 · `tp` 1,1–2,3 · `msl` 2,2 · `10u/10v` 3,7 · `10fg` 3,1 · `tcc` 2,2 · `t@850` 1,2 · `lsm` 0,75 · `z` 4,0. Çalıştırma başına seçilen 13 yüzey + 1 basınç alanı: ~1,2–1,5 GB.
 - `ptype` kodları ([param-db 260015](https://codes.ecmwf.int/grib/param-db/260015)): 0 yok, 1 yağmur, 3 donan yağmur, 5 kar, 6 sulu kar, 7 yağmur-kar, 8 buz taneleri, 12 donan çisenti.
 - **AIFS Single (2026-11-03):** yüzey ve basınç seviyesi tek dosyada (`…-<adım>h-oper-fc.grib2`, `-sfc/-pl` eki yok); index'te `levtype` alanı ayırıyor (`z` hem yüzeyde hem basınç seviyelerinde var → seçimde `levtype` şart). 0. adımda 126, sonra 122 mesaj; `lsm`, `z`, `sdor`, `slor` yalnız 0. adımda. IFS'ten farklı olarak 0. adımda `tp/cp/sf` boş değil (224 baytlık sabit sıfır). Hamle ve yağış tipi yok. Izgara 0,25° (1440×721), boylam 180°'den başlıyor (çözücü −180…180'e çeviriyor), CCSDS. Birimler mesajdan: `tp/cp/sf` kg m⁻² `stepType=accum` "0-6"; `tcc/lcc` %; `z` m² s⁻². Çalıştırma başına (≤168 sa, 29 adım) 321 mesaj, ~113 MB, 15–30 sn.
@@ -123,6 +123,14 @@ Yayın (portal zaman damgası, UTC): IFS 0.25 00z 07:34, 06z 12:27, 12z 19:34, 1
 **Çalıştırmalar** ✅: 00/06/12/18; f000–f120 saatlik, f123–f384 3 saatlik (209 dosya). S3'e varış: ilk adımlar ~T+3s33dk, f384 ~T+5s15dk; NOMADS 1–2 dk önde.
 
 **Saklama/arşiv** ✅: NOMADS 10 gün. AWS en eski `gfs.20210101` (çapraz kontrol ✅); 2021-01-01→2026-10-31 arası **eksik gün yok**; `atmos/` alt dizini 2021-03-22 12Z'den (v16). NCEI'nin "trailing 30-day window" ifadesi listelemeyle çelişiyor; resmî saklama taahhüdü yok ⚠️.
+
+**Faz 3 bulguları (2026-11-03, .idx ve mesajlardan ✅)**
+- `.idx` satırı `no:offset:d=YYYYMMDDHH:DEĞİŞKEN:seviye:zaman:`; mesaj uzunluğu sonraki satırın offset'inden (son satır dosya sonuna kadar). S3'te olmayan nesne 404.
+- Zaman metinleri: anlık `"<N> hour fcst"` (f000'da `"anl"`); `APCP`/`ACPCP` iki kayıt: kova (`"6-9 hour acc fcst"`; 120 sa sonrası 3 saatlik kova `"120-123"`) ve sürekli `"0-<N> hour acc fcst"` → sürekli kayıt alınıyor. f000'da birikim kaydı yok (başlangıç 0).
+- `CRAIN/CSNOW/CFRZR/CICEP`, `TCDC`, `LCDC` hem anlık hem `"a-b hour ave fcst"` olarak var → anlık alınıyor. Bayraklar 0/1 (Code table 4.222).
+- `VIS:surface` m (İstanbul kutusunda 0,5–24 km; üst sınır ~24.135 m), `GUST:surface` m/s anlık, `TCDC`/`LCDC` %, `APCP` kg m⁻², `LAND:surface` 0/1, `HGT:surface` m (orografi). Kar yağışının su eşdeğeri yok (`WEASD`/`SNOD` yerdeki kar).
+- Izgara 0,25° (1440×721), boylam 0°'dan, `grid_complex_spatial_differencing`. Adım başına seçilen 16 alan ~9 MB.
+- Hız: AWS'den 8 bağlantıyla 1–11 MB/sn (değişken); GCS yansısı (`https://storage.googleapis.com/global-forecast-system/…`, aynı yollar, Range destekli) 5–14 MB/sn — yedek kaynak.
 
 **Sürüm** ✅: GFS v16.3 (`gfs.v16.3.34`). **GFSv17 "late 2027"** ([PNS26-29](https://www.weather.gov/media/notification/pdf_2026/pns26-29_Updated_Science_for_GFSv17_aaa.pdf)); dizin/ad değişecek; 0.5°/1° pgrb2 ve zaman ortalamalı CRAIN/CSNOW kaldırılacak ([PNS26-30](https://www.weather.gov/media/notification/pdf_2026/pns26-30_CommentsGFSv17_ProductRemoval.pdf)).
 
