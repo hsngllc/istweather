@@ -7,13 +7,14 @@ from pathlib import Path
 
 import pytest
 from sqlalchemy import delete, select
+from sqlalchemy.orm import Session
 
 from hava.db.models import Observation, SourceHealth
 from hava.db.session import session_scope
 from hava.ingest.obs.store import RawReport, metar_station_ids, store_reports
 from hava.ops.health import evaluate, record_error, record_success
 from hava.qc.observations import QC_VERSION, run_qc
-from hava.settings import get_settings
+from hava.settings import Settings, get_settings
 
 pytestmark = [
     pytest.mark.integration,
@@ -79,6 +80,13 @@ def test_qc_marks_every_row_and_flags_errors(clean: None) -> None:
     assert flags[t0 + timedelta(hours=1)]["dewpoint_c"] == ["dewpoint_gt_temp"]
 
 
+def _metar_transitions(session: Session, now: datetime, settings: Settings) -> dict[str, bool]:
+    """Yalnız gözlem kaynakları (model tazeliği ``test_model_runs``'ta)."""
+    return {
+        t.source: t.stale for t in evaluate(session, now, settings) if t.source.startswith("metar")
+    }
+
+
 def test_freshness_transitions(clean: None) -> None:
     settings = get_settings()
     now = datetime.now(UTC).replace(second=0, microsecond=0)
@@ -87,7 +95,7 @@ def test_freshness_transitions(clean: None) -> None:
         ids = metar_station_ids(session)
         store_reports(session, [_synthetic("LTFM", recent)], ids, overwrite=True)
         record_success(session, "metar_awc", now)
-        first = {t.source: t.stale for t in evaluate(session, now, settings)}
+        first = _metar_transitions(session, now, settings)
         session.commit()
     # LTFM taze; diğer iki istasyonda veri yok → bozuk olarak bildirilir.
     assert first == {"metar:LTFJ": True, "metar:LTBA": True}
@@ -95,7 +103,7 @@ def test_freshness_transitions(clean: None) -> None:
     later = now + timedelta(minutes=settings.metar_stale_minutes + 5)
     with session_scope() as session:
         record_error(session, "metar_awc", later, "ConnectError: test")
-        second = {t.source: t.stale for t in evaluate(session, later, settings)}
+        second = _metar_transitions(session, later, settings)
         session.commit()
         awc = session.get(SourceHealth, "metar_awc")
         assert awc is not None and awc.stale and awc.last_error == "ConnectError: test"
@@ -104,6 +112,6 @@ def test_freshness_transitions(clean: None) -> None:
     with session_scope() as session:
         store_reports(session, [_synthetic("LTFM", later)], ids, overwrite=True)
         record_success(session, "metar_awc", later)
-        third = {t.source: t.stale for t in evaluate(session, later, settings)}
+        third = _metar_transitions(session, later, settings)
         session.commit()
     assert third == {"metar:LTFM": False, "metar_awc": False}
