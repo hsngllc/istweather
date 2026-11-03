@@ -109,6 +109,7 @@ Yayın (portal zaman damgası, UTC): IFS 0.25 00z 07:34, 06z 12:27, 12z 19:34, 1
 - Hamle parametresi: 0–90 sa `10fg`, 93–144 sa `10fg3`, 150+ sa `10fg` (03/06/93/96/144/150/168h index'lerinden). 0. adımda `tp` ve `10fg` mesajları boş (`_length` 0); `z` (orografi) yalnız 0. adımda.
 - 0.1° mesaj boyutları (06z, MB): `2t` 1,4 · `2d` 1,4 · `tp` 1,1–2,3 · `msl` 2,2 · `10u/10v` 3,7 · `10fg` 3,1 · `tcc` 2,2 · `t@850` 1,2 · `lsm` 0,75 · `z` 4,0. Çalıştırma başına seçilen 13 yüzey + 1 basınç alanı: ~1,2–1,5 GB.
 - `ptype` kodları ([param-db 260015](https://codes.ecmwf.int/grib/param-db/260015)): 0 yok, 1 yağmur, 3 donan yağmur, 5 kar, 6 sulu kar, 7 yağmur-kar, 8 buz taneleri, 12 donan çisenti.
+- **AIFS Single (2026-11-03):** yüzey ve basınç seviyesi tek dosyada (`…-<adım>h-oper-fc.grib2`, `-sfc/-pl` eki yok); index'te `levtype` alanı ayırıyor (`z` hem yüzeyde hem basınç seviyelerinde var → seçimde `levtype` şart). 0. adımda 126, sonra 122 mesaj; `lsm`, `z`, `sdor`, `slor` yalnız 0. adımda. IFS'ten farklı olarak 0. adımda `tp/cp/sf` boş değil (224 baytlık sabit sıfır). Hamle ve yağış tipi yok. Izgara 0,25° (1440×721), boylam 180°'den başlıyor (çözücü −180…180'e çeviriyor), CCSDS. Birimler mesajdan: `tp/cp/sf` kg m⁻² `stepType=accum` "0-6"; `tcc/lcc` %; `z` m² s⁻². Çalıştırma başına (≤168 sa, 29 adım) 321 mesaj, ~113 MB, 15–30 sn.
 
 ### 2.2 NOAA GFS 0.25°
 

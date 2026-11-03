@@ -1,4 +1,4 @@
-"""ECMWF IFS adaptörü: adımlar, adresler, index seçimi (gerçek index örnekleriyle)."""
+"""ECMWF IFS ve AIFS adaptörü: adımlar, adresler, index seçimi (gerçek index örnekleriyle)."""
 
 from datetime import UTC, datetime
 from pathlib import Path
@@ -56,3 +56,36 @@ def test_candidate_runs_are_six_hourly_and_oldest_first() -> None:
     assert runs[-1] == datetime(2026, 11, 2, 12, tzinfo=UTC)
     assert runs[0] == datetime(2026, 11, 1, 12, tzinfo=UTC)
     assert len(runs) == 5
+
+
+AIFS = ecmwf.AIFS_SINGLE
+
+
+def test_aifs_steps_and_single_file_urls() -> None:
+    init = datetime(2026, 11, 2, 18, tzinfo=UTC)
+    steps = ecmwf.steps_for(init, 168, AIFS)
+    assert steps[:3] == [0, 6, 12] and steps[-1] == 168 and len(steps) == 29
+    assert ecmwf.index_url(BASE, init, 6, None, AIFS) == (
+        f"{BASE}/20261102/18z/aifs-single/0p25/oper/20261102180000-6h-oper-fc.index"
+    )
+    files = ecmwf.files_for(AIFS, 0)
+    assert len(files) == 1 and files[0][0] is None
+    assert {w.var for w in files[0][1]} >= {"t2m", "t850", "lsm", "orog"}
+    assert {w.var for w in ecmwf.files_for(AIFS, 6)[0][1]} & {"lsm", "orog"} == set()
+
+
+def test_aifs_select_takes_surface_z_not_pressure_level_z() -> None:
+    entries = _index("aifs0p25_20261102T18Z_0h.index")
+    wanted = ecmwf.files_for(AIFS, 0)[0][1]
+    chosen = {w.var: e for w, e in ecmwf.select(entries, wanted, 0)}
+    assert set(chosen) == {w.var for w in wanted}  # hepsi var
+    assert chosen["orog"]["levtype"] == "sfc" and chosen["t850"]["levelist"] == "850"
+
+
+def test_aifs_units_differ_from_ifs() -> None:
+    entries = _index("aifs0p25_20261102T18Z_6h.index")
+    chosen = {w.var: w for w, _ in ecmwf.select(entries, ecmwf.files_for(AIFS, 6)[0][1], 6)}
+    assert chosen["precip_acc"].scale == 1.0  # kg m-2 (IFS: m → ×1000)
+    assert chosen["tcc"].scale == 0.01  # % (IFS: 0–1)
+    assert "gust" not in chosen and "ptype" not in chosen  # AIFS'te yok
+    assert AIFS.spec.gust_definition(6) is None

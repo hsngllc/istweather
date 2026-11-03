@@ -40,6 +40,9 @@ models:
       Weather Forecasts (ECMWF) (AIFS). Source: www.ecmwf.int. CC BY 4.0. Veriler işlenmiştir.
     active: true
     internal_only: false
+    meta:
+      gust_definition: "yok (AIFS hamle üretmiyor)"
+      stale_hours: 18
   - code: ecmwf_aifs_ens
     provider: ECMWF
     kind: ensemble

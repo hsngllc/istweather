@@ -19,7 +19,8 @@ log = structlog.get_logger()
 
 # Model kodu → toplayıcı. Faz 3'te adaptör eklendikçe genişler.
 ADAPTERS: dict[str, Callable[[], list[dict[str, Any]]]] = {
-    ecmwf.MODEL_CODE: ecmwf.collect,
+    ecmwf.IFS.code: ecmwf.collect_ifs,
+    ecmwf.AIFS_SINGLE.code: ecmwf.collect_aifs_single,
     icon.ICON.code: icon.collect_icon,
     icon.ICON_EU.code: icon.collect_icon_eu,
 }

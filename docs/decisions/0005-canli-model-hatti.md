@@ -37,8 +37,12 @@ GRIB2 mesajları alan olarak bölünemez: İstanbul için bile her parametrenin 
   deneme; çalıştırma "tamam" sayılması için son adımın dosyaları yayımlanmış olmalı. Ortak akış
   `hava.ingest.models.runner`'da. Worker'da **her model ayrı iş** (`collect_model:<kod>`, 10 dk):
   yavaş bir model diğerini bekletmez, hata bildirimi model adıyla gelir. Her iş son 72 saatteki
-  (DWD için 30 saat) yüklenmemiş çalıştırmaları eskiden yeniye işler (çağrı başına en fazla 2).
+  (DWD için 30 saat) yüklenmemiş çalıştırmaları **yeniden eskiye** işler (çağrı başına en fazla 2):
+  kesinti sonrası önce güncel veri gelir, eksik eskiler sonraki turlarda dolar (2026-11-03; önceden
+  eskiden yeniye işleniyordu ve ilk dolumda tazelik uyarısına yol açtı).
 - **Tazelik:** `models.meta.stale_hours` olan modeller `source_health`'te `model:<kod>` olarak izlenir.
+  Hiç yüklenmiş çalıştırması olmayan yeni bir model, toplayıcısı (`collector:<kod>`) ilk turunu
+  başarıyla bitirene kadar bayat sayılmaz; toplayıcı hata verirse iş hatası bildirimi gider.
 
 ## ECMWF IFS özel notları
 - Kaynak ECMWF portalı (`data.ecmwf.int`). AWS yansısı 2026-11-02'de tek bir index isteğine bile
@@ -48,6 +52,13 @@ GRIB2 mesajları alan olarak bölünemez: İstanbul için bile her parametrenin 
   `lsm_bilinear`; yükseklik düzeltmesi −0,7…+0,6 °C.
 - Hamle parametresi adıma göre değişiyor (index'ten teyit): 0–90 sa `10fg` (son 1 sa), 93–144 sa
   `10fg3` (son 3 sa), 150+ sa `10fg` (son 6 sa). 0. adımda `tp` ve `10fg` mesajları boş.
+
+## ECMWF AIFS Single özel notları (2026-11-03)
+- IFS adaptörü "ürün" yapısıyla genelleştirildi (`ecmwf.Product`): yol, dosya bölünmesi, alanlar,
+  birim çarpanları, adımlar ve hamle tanımı ürün başına. AIFS: tek dosya, 0–360 sa 6'şar, yağış
+  kg m⁻² (çarpan 1), bulut % (çarpan 0,01), hamle ve yağış tipi yok.
+- İlk çalıştırmalar: 321 mesaj, ~113 MB, 15–30 sn; 42 noktanın 41'i maskeli bilineer, 1 kıyı
+  noktası en yakın kara hücresinden.
 
 ## DWD ICON / ICON-EU özel notları (2026-11-03)
 - Kaynak opendata.dwd.de v1 şeması (eski şema 30.11.2026'da kapanıyor); yalnız native üçgen ızgara.
@@ -71,8 +82,8 @@ GRIB2 mesajları alan olarak bölünemez: İstanbul için bile her parametrenin 
   1,09 GB (iki ICON işi aynı anda). 6 saatlik çevrimde yeterli; sunucuda yeniden ölçülecek.
 
 ## Sonuçlar
-- İndirme hacmi çalıştırma başına ~1,2–1,5 GB (IFS 0.1°), ~4–4,7 GB (ICON; index olmadığından tüm
-  küre), ~1 GB (ICON-EU) → günde ~28 GB. Ensemble'larda çok daha fazla olacak → ensemble'da
+- İndirme hacmi çalıştırma başına ~1,2–1,5 GB (IFS 0.1°), ~0,1 GB (AIFS), ~4–4,7 GB (ICON; index
+  olmadığından tüm küre), ~1 GB (ICON-EU) → günde ~28 GB. Ensemble'larda çok daha fazla olacak → ensemble'da
   adım/parametre sınırlaması ayrıca kararlaştırılacak.
 - Kanonik ad ve birim sözleşmesi bozulursa tüm modeller etkilenir; testler (`tests/test_pipeline.py`)
   bu sözleşmeyi sabitler.
