@@ -237,7 +237,7 @@ Her dosya tek alan; `.idx` yok (gerek de yok). Sabit alanlar (`HSURF`, `FR_LAND`
 
 **Izgara** ✅: Global 2560×1920 (0.140625° × 0.09375°); İstanbul kutusunda 11×15 nokta. MOGREPS-G 1280×960 (~20 km).
 
-**Çalıştırmalar** ✅: 00/06/12/18. 00/12Z T+168; 06/18Z T+69. Adımlar: 0–54 saatlik, 57–144 3 sa, 150–168 6 sa. Gözlenen yayın: T+5,5–7,5 sa. MOGREPS-G: T+246, çalıştırma başına 18 üye.
+**Çalıştırmalar** ✅: 00/06/12/18. 00/12Z T+168; 06/18Z T+69. Adımlar: 0–54 saatlik, 57–144 3 sa, 150–168 6 sa. Gözlenen yayın: T+5,5–7,5 sa. MOGREPS-G: T+246, çalıştırma başına 18 üye. Canlı işte (2026-11-03 S3 listeleri ✅) istenen parametrelerden 00/12Z 1.810 dosya (89 adım), 06/18Z 1.217 dosya (60 adım); dosyalar kademeli yüklendiği için tamlık = en uzun adım ufka ulaştı ve dosya sayısı önceki aynı tip çalıştırmadan az değil.
 
 **Saklama/arşiv** ✅: Deterministik **2 yıl kayan** — en eski 20241030T1800Z (çapraz kontrol ✅). MOGREPS-G 30 gün kayan. Parametre seti iki kez değişti: `height_of_orography` 2025-12-12'den; 2026-01-21 12Z'den yeni set (`geopotential_height_on_pressure_levels` vb.). Microsoft Planetary Computer aynası 2023-12'den görünüyor ama 2024-01-01 sorgusu boş döndü ⚠️❓.
 

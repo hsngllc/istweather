@@ -148,6 +148,7 @@ models:
       gust_definition: "wind_gust_at_10m: önceki 10 dk'daki en yüksek 3 sn ortalaması; _max-PTnnH: pencere max"
       accumulation: "aralık toplamı (PT01H/PT03H/PT06H)"
       backfill: "AWS 2 yıllık kayan arşiv; nokta çıkarımı 2026-11-01'de başlatıldı"
+      stale_hours: 18  # canlı (2026-11-03); 06/18z kısa çalıştırmalar dahil
   - code: eccc_gdps
     provider: ECCC
     kind: deterministic

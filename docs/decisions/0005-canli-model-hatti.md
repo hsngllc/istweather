@@ -73,6 +73,18 @@ GRIB2 mesajları alan olarak bölünemez: İstanbul için bile her parametrenin 
 - Görüş doğrulamasında METAR `9999` "≥ 10 km" demek (sansürlü); GFS üst sınırı ~24 km. Faz 5'te
   karşılaştırma bu eşikle yapılmalı.
 
+## UK Met Office Global özel notları (2026-11-03)
+- Yalnız iç doğrulama (CC BY-SA; `models.internal_only`). Arşiv hattı (`hava.ingest.archive.ukmo` +
+  `load_ukmo`) canlıda yeniden kullanılır (`hava.ingest.models.ukmo`): stencil tabanlı nokta
+  çıkarımı, Parquet + manifest, `point_forecasts`'a maskesiz bilineer; `model_runs` durumları
+  canlı işte yönetilir.
+- h5py iş parçacıklarında seri çalıştığından çıkarım 6 ayrı süreçte (`forkserver`; worker çok iş
+  parçacıklı olduğu için `fork` değil).
+- Tamlık: en uzun adım ufka ulaştı (00/12z 168 sa, 06/18z 69 sa) ve istenen dosya sayısı 12 saat
+  önceki aynı tip çalıştırmadan az değil.
+- İlk canlı çalıştırma (2026-11-03 00z, Docker): 1.810 dosya, 13.212 Range isteği, 111 MB, 180 sn,
+  3.738 satır; sağlama (00–09 UTC, METAR): sıcaklık hatası 1,3 °C, basınç 0,4 hPa.
+
 ## Météo-France ARPEGE özel notları (2026-11-03)
 - Açık paketler (OVH S3, Licence Ouverte 2.0); index yok → SP1 ve SP2 dosyaları bütün indirilir
   (~1,3 GB/çalıştırma), diske akıtılır, mesajlar kimlikle (discipline/kategori/numara + adım türü +
