@@ -8,11 +8,12 @@ değer uydurulmaz.
 
 from __future__ import annotations
 
-import math
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
+
+from hava.processing.thermo import relative_humidity
 
 PARSER_VERSION = "metar-1"
 
@@ -113,15 +114,6 @@ class Metar:
         if self.temp_c is None or self.dewpoint_c is None:
             return None
         return relative_humidity(self.temp_c, self.dewpoint_c)
-
-
-def relative_humidity(temp_c: float, dewpoint_c: float) -> float:
-    """Magnus formülü (Alduchov & Eskridge 1996 katsayıları), %0–100 aralığına kırpılır."""
-
-    def es(t: float) -> float:
-        return 6.1094 * math.exp(17.625 * t / (t + 243.04))
-
-    return min(100.0, 100.0 * es(dewpoint_c) / es(temp_c))
 
 
 def _speed(value: str, unit: str) -> float:

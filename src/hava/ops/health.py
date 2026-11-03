@@ -6,6 +6,9 @@ Kaynak adları:
 - ``metar:<ICAO>``: istasyonun veri tazeliği; ``last_success_at`` son gözlemin zamanı. Bayat: son
   gözlem eşikten eski (kaynak hangisi olursa olsun).
 - ``metar_iem``: günlük IEM boşluk doldurma işi.
+- ``model:<kod>``: modelin veri tazeliği; ``last_success_at`` son yüklenen çalıştırmanın başlangıç
+  zamanı. Bayat: ``models.meta.stale_hours``'tan eski (yalnız bu anahtarı olan modeller izlenir).
+- ``collector:<kod>``: model toplayıcısının son başarılı/başarısız denemesi.
 - ``worker``: kalp atışı.
 
 Bayatlık durumu değiştiğinde (bozuldu / düzeldi) bildirim gider; durum sürdükçe tekrar gönderilmez.
@@ -22,7 +25,7 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from hava.db.models import Observation, SourceHealth, Station
+from hava.db.models import Model, ModelRun, Observation, SourceHealth, Station
 from hava.db.session import session_scope
 from hava.ops.notify import notify
 from hava.settings import Settings, get_settings
@@ -107,6 +110,32 @@ def evaluate(session: Session, now: datetime, settings: Settings) -> list[Transi
             detail += f"; son hata: {awc.last_error}"
         if _set_stale(session, "metar_awc", stale, now):
             transitions.append(Transition("metar_awc", stale, detail))
+
+    transitions += _evaluate_models(session, now)
+    return transitions
+
+
+def _evaluate_models(session: Session, now: datetime) -> list[Transition]:
+    transitions: list[Transition] = []
+    watched = session.execute(
+        select(Model.id, Model.code, Model.meta).where(
+            Model.active.is_(True), Model.meta.has_key("stale_hours")
+        )
+    ).all()
+    for mid, code, meta in watched:
+        last = session.execute(
+            select(func.max(ModelRun.init_time)).where(
+                ModelRun.model_id == mid, ModelRun.status == "loaded"
+            )
+        ).scalar_one_or_none()
+        source = f"model:{code}"
+        if last is not None:
+            _upsert(session, source, last_success_at=last, updated_at=now)
+        stale = last is None or now - last > timedelta(hours=float(meta["stale_hours"]))
+        if _set_stale(session, source, stale, now):
+            transitions.append(
+                Transition(source, stale, f"son yüklenen çalıştırma {_fmt(last, now)}")
+            )
     return transitions
 
 

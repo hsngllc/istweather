@@ -103,6 +103,13 @@ Yayın (portal zaman damgası, UTC): IFS 0.25 00z 07:34, 06z 12:27, 12z 19:34, 1
 
 **Birimler (dikkat)** ✅: AIFS yağış kg m⁻² (=mm), IFS metre; AIFS bulut %, IFS 0–1 ([param-db](https://codes.ecmwf.int/grib/param-db/228228)).
 
+**Faz 3 bulguları (2026-11-02)** ✅ — canlı adaptör bunlara göre yazıldı ([ADR-0005](decisions/0005-canli-model-hatti.md)):
+- AWS yansısı tek bir `.index` isteğine bile `503 SlowDown` döndürdü → canlıda portal (`data.ecmwf.int`) kullanılıyor; portal index'leri < 0,5 sn'de geliyor.
+- IFS 0.1° 06z koşusu 144 saatte bitiyor (150h index'i yok); 00z'de 150/168h var.
+- Hamle parametresi: 0–90 sa `10fg`, 93–144 sa `10fg3`, 150+ sa `10fg` (03/06/93/96/144/150/168h index'lerinden). 0. adımda `tp` ve `10fg` mesajları boş (`_length` 0); `z` (orografi) yalnız 0. adımda.
+- 0.1° mesaj boyutları (06z, MB): `2t` 1,4 · `2d` 1,4 · `tp` 1,1–2,3 · `msl` 2,2 · `10u/10v` 3,7 · `10fg` 3,1 · `tcc` 2,2 · `t@850` 1,2 · `lsm` 0,75 · `z` 4,0. Çalıştırma başına seçilen 13 yüzey + 1 basınç alanı: ~1,2–1,5 GB.
+- `ptype` kodları ([param-db 260015](https://codes.ecmwf.int/grib/param-db/260015)): 0 yok, 1 yağmur, 3 donan yağmur, 5 kar, 6 sulu kar, 7 yağmur-kar, 8 buz taneleri, 12 donan çisenti.
+
 ### 2.2 NOAA GFS 0.25°
 
 **Erişim** ✅

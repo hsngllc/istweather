@@ -18,6 +18,8 @@ models:
     meta:
       gust_definition: "10fg: 0–90 sa son 1 sa max; 93–144 sa 10fg3 son 3 sa; 150–360 sa son 6 sa"
       version_breaks: ["2024-11-13", "2025-11-21", "2026-05-12", "2026-10-20"]
+      # Son yüklenen çalıştırma bu kadar saatten eskiyse kaynak bayat (0.1° yayını T+8,5 sa).
+      stale_hours: 18
   - code: ecmwf_ifs_ens
     provider: ECMWF
     kind: ensemble

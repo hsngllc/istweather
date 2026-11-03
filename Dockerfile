@@ -1,5 +1,5 @@
 # api, worker ve migrate servislerinin ortak imajı.
-# Not: Faz 3'te GRIB işleme için libaec destekli eccodes eklenecek (DWD/Météo-France CCSDS).
+# GRIB çözümü pip'teki eccodes + eccodeslib ikili paketiyle (libaec/CCSDS dahil); apt gerekmez.
 FROM python:3.12.16-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \

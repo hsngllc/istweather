@@ -40,6 +40,14 @@ class Settings(BaseSettings):
     metar_stale_minutes: int = 90
     awc_fetch_stale_minutes: int = 30
 
+    # Model verisi (spec §5.1). Kırpma kutusu bölge kutusu + pay (nokta komşulukları için).
+    ecmwf_base_url: str = "https://data.ecmwf.int/forecasts"
+    model_max_lead_h: int = 168
+    model_crop_margin_deg: float = 1.0
+    model_download_workers: int = 8
+    model_lookback_hours: int = 72  # portal ~12 çalıştırma tutar; kaçırılanlar bu pencerede aranır
+    grib_retention_days: int = 30
+
     # Bildirimler (spec §14). Kanal ayarı boşsa yalnız loga yazılır.
     telegram_bot_token: SecretStr = SecretStr("")
     telegram_chat_id: str = ""
