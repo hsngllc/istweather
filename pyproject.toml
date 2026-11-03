@@ -68,6 +68,9 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Testler ortak sentetik veri üreticilerini ``tests.`` altından içe aktarır (``pytest`` ve
+# ``python -m pytest`` aynı davransın).
+pythonpath = ["."]
 markers = [
     "network: ağ erişimi gerektiren testler (CI'da varsayılan olarak kapalı)",
     "integration: TimescaleDB gerektiren testler (HAVA_DATABASE_URL yoksa atlanır)",
