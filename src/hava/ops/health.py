@@ -131,6 +131,10 @@ def _evaluate_models(session: Session, now: datetime) -> list[Transition]:
         source = f"model:{code}"
         if last is not None:
             _upsert(session, source, last_success_at=last, updated_at=now)
+        elif session.get(SourceHealth, f"collector:{code}") is None:
+            # Yeni eklenen model: toplayıcı ilk turunu bitirmeden "veri yok" denmez (toplayıcı
+            # hata verirse iş hatası bildirimi zaten gider).
+            continue
         stale = last is None or now - last > timedelta(hours=float(meta["stale_hours"]))
         if _set_stale(session, source, stale, now):
             transitions.append(

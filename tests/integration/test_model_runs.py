@@ -11,7 +11,7 @@ from hava.db.models import Point as PointRow
 from hava.db.session import session_scope
 from hava.ingest.models.pipeline import store_rows
 from hava.ingest.models.runs import get_run, model_id, set_status, should_process
-from hava.ops.health import evaluate
+from hava.ops.health import evaluate, record_success
 from hava.settings import get_settings
 
 pytestmark = [
@@ -29,6 +29,7 @@ def mid(seeded: str) -> int:
         session.execute(delete(PointForecast))
         session.execute(delete(ModelRun))
         session.execute(delete(SourceHealth).where(SourceHealth.source.like("model:%")))
+        session.execute(delete(SourceHealth).where(SourceHealth.source.like("collector:%")))
         session.commit()
         return model_id(session, MODEL)
 
@@ -89,7 +90,12 @@ def test_model_freshness(mid: int) -> None:
             session.commit()
         return {k: v for k, v in out.items() if k == f"model:{MODEL}"}
 
-    # Hiç yüklenmiş çalıştırma yok → bayat olarak bildirilir (METAR'daki "veri yok" ile aynı).
+    # Yeni model: toplayıcı ilk turunu bitirmeden bildirim yok.
+    assert model_transitions(now) == {}
+    # Toplayıcı turunu bitirdi ama hiç yüklenmiş çalıştırma yok → bayat (METAR'daki "veri yok").
+    with session_scope() as session:
+        record_success(session, f"collector:{MODEL}", now)
+        session.commit()
     assert model_transitions(now) == {f"model:{MODEL}": True}
     with session_scope() as session:
         set_status(session, mid, now - timedelta(hours=8), "loaded")

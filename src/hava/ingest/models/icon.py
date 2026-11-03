@@ -177,7 +177,7 @@ def collect_run(
 
 
 def collect(model: IconModel, max_runs: int = 2) -> list[dict[str, Any]]:
-    """Worker işi: tamamlanmış ve yüklenmemiş çalıştırmaları (eskiden yeniye) işler."""
+    """Worker işi: tamamlanmış ve yüklenmemiş çalıştırmaları (yeniden eskiye) işler."""
     settings = get_settings()
     region = load_region(settings.region_config)
     base = settings.dwd_base_url
@@ -185,7 +185,8 @@ def collect(model: IconModel, max_runs: int = 2) -> list[dict[str, Any]]:
     lookback = min(settings.model_lookback_hours, DWD_LOOKBACK_H)
     done: list[dict[str, Any]] = []
     with httpx.Client(timeout=120.0, headers={"User-Agent": settings.http_user_agent}) as client:
-        for init in candidate_runs(datetime.now(UTC), lookback):
+        # Önce en yeni çalıştırma (tazelik), sonra eksik kalan eskiler.
+        for init in reversed(candidate_runs(datetime.now(UTC), lookback)):
             if not pending(model.code, init):
                 continue
             if not run_complete(client, base, model, init, settings.model_max_lead_h):
