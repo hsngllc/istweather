@@ -34,7 +34,7 @@ import httpx
 from hava.ingest.archive.http_range import get_with_retry
 from hava.ingest.models import ensemble
 from hava.ingest.models.ensemble import EnsembleCollector
-from hava.ingest.models.grib import decode_message
+from hava.ingest.models.grib import GribField, decode_message
 from hava.ingest.models.pipeline import ModelSpec, RunCollector
 from hava.ingest.models.runner import (
     Source,
@@ -327,6 +327,22 @@ def collect_run(
                 stats["messages"] += 1
                 stats["bytes"] += len(blob)
     return col, stats
+
+
+def latest_land_mask(client: httpx.Client, base: str, now: datetime) -> tuple[GribField, datetime]:
+    """Portaldaki en yeni IFS 0.1° çalıştırmasının kara oranı (0. adım ``lsm``).
+
+    Kara-deniz maskesi vermeyen ama aynı 0,1° düğümlerini kullanan modeller (ARPEGE EURAT01) için.
+    """
+    for init in reversed(candidate_runs(now, 72)):
+        resp = client.get(index_url(base, init, 0, "sfc"))
+        if resp.status_code != 200:
+            continue
+        chosen = select(parse_index(resp.text), [STATIC[0]], 0)
+        if chosen:
+            blob = _download(client, grib_url(base, init, 0, "sfc"), chosen[0][1])
+            return decode_message(blob), init
+    raise LookupError("portalda IFS 0.1° kara oranı bulunamadı")
 
 
 def ens_url(base: str, init: datetime, step: int, ftype: str, product: EnsProduct) -> str:

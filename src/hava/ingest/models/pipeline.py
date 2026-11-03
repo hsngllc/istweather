@@ -76,6 +76,7 @@ class ModelSpec:
     code: str
     gust_definition: Callable[[float], str | None]
     ptype_names: dict[int, str] = field(default_factory=dict)
+    visibility_definition: str | None = None  # ör. "instant", "min_1h"
 
 
 class RunCollector:
@@ -121,6 +122,23 @@ class RunCollector:
 
     def add_static(self, var: str, f: GribField, scale: float = 1.0) -> None:
         self.static[var] = self.crop_field(f) * scale
+
+    def add_static_aligned(self, var: str, f: GribField, scale: float = 1.0) -> None:
+        """Başka bir ürünün alanını, aynı düğümlere sahipse çalıştırmanın kırpılmış ızgarasına alır.
+
+        Ör. ARPEGE için IFS 0.1° kara oranı (iki ızgara da 0,1°'nin katlarında). Düğümler 1e-4°
+        içinde çakışmazsa ``GridChanged``.
+        """
+        if not isinstance(self.crop, Crop) or f.values.ndim != 2:
+            raise GridChanged(f"{f.short_name}: hizalama yalnız düzenli ızgarada")
+        grid = self.crop.grid
+        rows = np.abs(f.lat[None, :] - grid.lat[:, None]).argmin(axis=1)
+        cols = np.abs(f.lon[None, :] - grid.lon[:, None]).argmin(axis=1)
+        off = max(np.abs(f.lat[rows] - grid.lat).max(), np.abs(f.lon[cols] - grid.lon).max())
+        if off > 1e-4:
+            raise GridChanged(f"{f.short_name}: düğümler çakışmıyor (en büyük fark {off:.4f}°)")
+        aligned = np.ascontiguousarray(f.values[np.ix_(rows, cols)], dtype=np.float64)
+        self.static[var] = aligned * scale
 
     @property
     def steps(self) -> list[float]:
@@ -195,6 +213,8 @@ def extract_rows(
                 extra["lapse_correction_c"] = round(float(corr[k]), 3)
             if gust_def:
                 extra["gust_definition"] = gust_def
+            if "vis" in v and spec.visibility_definition:
+                extra["visibility_definition"] = spec.visibility_definition
             if "conv_acc" in interval:
                 extra["conv_precip_mm"] = _num(interval["conv_acc"][k])
             code = None if ptype is None or not np.isfinite(ptype[k]) else round(float(ptype[k]))

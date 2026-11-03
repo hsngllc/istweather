@@ -165,3 +165,18 @@ def test_missing_step0_accumulation_starts_from_zero() -> None:
     assert rows[0.0]["precip_mm"] is None
     assert rows[1.0]["precip_mm"] == pytest.approx(0.4) and rows[1.0]["precip_period_h"] == 1.0
     assert rows[2.0]["precip_mm"] == pytest.approx(0.6)
+
+
+def test_static_from_other_product_aligns_only_on_shared_nodes() -> None:
+    col = _collector()  # 0,25° ızgara
+    other = GribField(
+        "lsm", "surface", 0, 0.0, "0", "", LAT, LON, np.full((len(LAT), len(LON)), 0.7)
+    )
+    col.add_static_aligned("lsm", other)
+    assert col.crop is not None and col.static["lsm"].shape == col.crop.grid.shape
+    assert np.allclose(col.static["lsm"], 0.7)
+    shifted = GribField(
+        "lsm", "surface", 0, 0.0, "0", "", LAT + 0.1, LON, np.zeros((len(LAT), len(LON)))
+    )
+    with pytest.raises(GridChanged):
+        col.add_static_aligned("lsm", shifted)

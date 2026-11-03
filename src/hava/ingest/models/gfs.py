@@ -73,7 +73,12 @@ FIELDS = (
 STATIC = (Want("LAND", "surface", "lsm"), Want("HGT", "surface", "orog"))
 FLAGS = ("cfrzr", "cicep", "csnow", "crain")
 
-SPEC = ModelSpec(code=MODEL_CODE, gust_definition=lambda s: "instant", ptype_names=PTYPE_NAMES)
+SPEC = ModelSpec(
+    code=MODEL_CODE,
+    gust_definition=lambda s: "instant",
+    ptype_names=PTYPE_NAMES,
+    visibility_definition="instant",
+)
 
 
 @dataclass(frozen=True)
