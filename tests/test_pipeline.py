@@ -152,3 +152,16 @@ def test_unstructured_rows_and_netcdf(tmp_path: Path) -> None:
         cells = len(f["lat"])
         assert f["t2m"].shape == (2, cells) and f["lsm"].shape == (cells,)
         assert f.attrs["grid_id"] == "g1" and f["lon"].shape == (cells,)
+
+
+def test_missing_step0_accumulation_starts_from_zero() -> None:
+    # GFS: 0. adımda APCP kaydı yok; "0-N" birikim tanımı gereği başlangıç 0'dır.
+    col = RunCollector(BBox(40.7, 41.7, 27.8, 30.0).expanded(0.5))
+    col.add("t2m", 0, synthetic_field(288.15))
+    for step, acc in ((1, 0.4), (2, 1.0)):
+        col.add("t2m", step, synthetic_field(288.15))
+        col.add("precip_acc", step, synthetic_field(acc))
+    rows = {r["lead_h"]: r for r in extract_rows(col, SPEC, POINTS[:1], INIT)}
+    assert rows[0.0]["precip_mm"] is None
+    assert rows[1.0]["precip_mm"] == pytest.approx(0.4) and rows[1.0]["precip_period_h"] == 1.0
+    assert rows[2.0]["precip_mm"] == pytest.approx(0.6)

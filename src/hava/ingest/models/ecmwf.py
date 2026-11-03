@@ -186,11 +186,15 @@ def parse_index(text: str) -> list[dict[str, Any]]:
 def select(
     entries: Sequence[dict[str, Any]], wants: Sequence[Want], step: int
 ) -> list[tuple[Want, dict[str, Any]]]:
-    """Adımda istenen mesajları seçer; hamle için o adımın parametresi tercih edilir."""
+    """Adımda istenen mesajları seçer; hamle için o adımın parametresi tercih edilir.
+
+    0. adımda hamle alınmaz: "önceki saatin en yükseği" başlangıç anında tanımsız ve ECMWF bu
+    mesajı sabit sıfırla dolduruyor (değer değil).
+    """
     gust_param = "10fg3" if 90 < step <= 144 else "10fg"
     out: list[tuple[Want, dict[str, Any]]] = []
     for w in wants:
-        if w.var == "gust" and w.param != gust_param:
+        if w.var == "gust" and (step == 0 or w.param != gust_param):
             continue
         for e in entries:
             if (

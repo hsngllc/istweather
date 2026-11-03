@@ -33,8 +33,9 @@ def test_select_step0_includes_static_fields_and_skips_empty_messages() -> None:
     chosen = ecmwf.select(entries, list(ecmwf.SFC) + list(ecmwf.STATIC), 0)
     got = {w.param for w, _ in chosen}
     assert {"2t", "2d", "10u", "10v", "msl", "tcc", "lcc", "ptype", "lsm", "z"} <= got
-    # 0. adımda tp ve 10fg mesajları boş (_length 0) → seçilmez.
     assert all(int(e["_length"]) > 0 for _, e in chosen)
+    # 0. adımın 10fg mesajı sabit sıfır (başlangıçta "son saatin en yükseği" yok) → alınmaz.
+    assert "10fg" not in got and "gust" not in {w.var for w, _ in chosen}
 
 
 def test_select_uses_three_hour_gust_between_93_and_144() -> None:

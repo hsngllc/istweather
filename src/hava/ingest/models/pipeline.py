@@ -12,6 +12,7 @@ u10, v10       10 m rüzgâr bileşenleri                      m/s
 gust           10 m hamle (tanımı ``ModelSpec``'te)         m/s
 msl            ortalama deniz seviyesi basıncı              Pa
 tcc, lcc       toplam / alçak bulut                         0–1
+vis            görüş                                        m
 precip_acc     toplam yağış, başlangıçtan beri              mm
 conv_acc       konvektif yağış, başlangıçtan beri           mm
 snow_acc       kar yağışı (su eşdeğeri), başlangıçtan beri  mm
@@ -59,7 +60,7 @@ from hava.processing.points import build_weights, lapse_correction
 from hava.processing.thermo import relative_humidity
 from hava.region import Point
 
-INSTANT = ("t2m", "d2m", "t850", "u10", "v10", "gust", "msl", "tcc", "lcc")
+INSTANT = ("t2m", "d2m", "t850", "u10", "v10", "gust", "msl", "tcc", "lcc", "vis")
 ACCUM = ("precip_acc", "conv_acc", "snow_acc")
 CATEGORICAL = ("ptype",)
 STATIC = ("lsm", "orog")
@@ -157,6 +158,8 @@ def extract_rows(
     rows: list[dict[str, Any]] = []
     prev_step: float | None = None
     prev_acc: dict[str, FloatArray] = {}
+    # Birikim başlangıçtan beri: 0. adımda mesajı olmayan modelde (ör. GFS) başlangıç değeri 0.
+    zero_based = {var for var in ACCUM if col.fields.get(var) and 0 not in col.fields[var]}
     for step in col.steps:
         v: dict[str, FloatArray] = {}
         for var in INSTANT:
@@ -167,6 +170,8 @@ def extract_rows(
             for var in ACCUM
             if step in col.fields.get(var, {})
         }
+        if step == 0:
+            prev_acc.update({var: np.zeros(n) for var in zero_based})
         interval: dict[str, FloatArray] = {}
         for var, now in acc_now.items():
             if prev_step is not None and var in prev_acc:
@@ -214,7 +219,7 @@ def extract_rows(
                     "mslp_hpa": _num(v["msl"][k] / 100.0) if "msl" in v else None,
                     "cloud_cover_pct": _num(v["tcc"][k] * 100.0) if "tcc" in v else None,
                     "low_cloud_pct": _num(v["lcc"][k] * 100.0) if "lcc" in v else None,
-                    "visibility_m": None,
+                    "visibility_m": _num(v["vis"][k]) if "vis" in v else None,
                     "t850_c": _num(v["t850"][k] - K0) if "t850" in v else None,
                     "extraction": label,
                     "extra": extra,
