@@ -14,13 +14,17 @@ geri yükleme denemesi ve sitenin HTTPS ile yayına açılması.
 
 | Seçenek | Değer | Neden |
 |---|---|---|
-| Tür | **CX33** (4 vCPU, 8 GB RAM, 80 GB disk), x86 | Ölçüm: worker en çok 1,4 GB, ortalama ~2 çekirdek. ARM (CAX) türleri denenmedi |
-| Konum | Almanya (Nürnberg/Falkenstein) veya Finlandiya (Helsinki) | Gelen trafik ücretsiz; kaynaklara yakın |
+| Tür | **CX33** (4 vCPU, 8 GB RAM, 80 GB NVMe disk, 20 TB trafik), x86; ayda 8,99 € (KDV hariç, 2026-11-05) | Ölçüm: worker olağan çalışmada ~1,4 GB, 21 saatlik kesintiden sonra tüm modeller birlikte toparlanırken ~3,8 GB; ortalama ~2 çekirdek. ARM (CAX) türleri denenmedi; yeniden boyutlandırmada mimari değişmez |
+| Konum | Nürnberg veya Helsinki | CX sayfasındaki Avrupa konumları; konum sonradan değiştirilemez |
 | İşletim sistemi | Ubuntu 24.04 LTS | Docker'ın desteklediği sürümlerden |
-| Ağ | Genel IPv4 **açık** (ayda 0,50 €, KDV hariç) ve IPv6 | Bazı veri kaynakları IPv6 desteklemeyebilir |
+| Ağ | Genel IPv4 **açık** ve IPv6 | Bazı veri kaynakları IPv6 desteklemeyebilir |
 | SSH anahtarı | 2. adımdaki `.pub` dosyasının içeriği | Şifreyle giriş kullanılmayacak |
 | Güvenlik duvarı | Yeni Cloud Firewall: gelen TCP 22. TCP 80 ve 443 yalnız alan adı bağlanınca | Ücretsiz; kural yoksa gelen trafik kapalı |
-| Yedek | İsteğe bağlı (ücretli, günlük disk kopyası) | Spec'teki sunucu dışı yedek Faz 8'de ayrıca kurulacak |
+| Yedek | Önerilir (ücretli, günlük disk kopyası; faturalama SSS'ine göre sunucu fiyatının %20'si) | Faz 8'deki sunucu dışı yedek kurulana kadar arşivi korur |
+
+Disk yetmezse **CX43**'e (8 vCPU, 16 GB RAM, 160 GB disk, ayda 16,49 €) geçilebilir. Disk büyütme geri
+alınamaz ve bölüm Rescue System'den elle büyütülür. Faturalama saatliktir, aylık tavanı vardır;
+kapalı sunucu da ücretlidir, silinen sunucu için yalnız kullanılan saatler ödenir.
 
 Docker'ın açtığı portlar sunucudaki `ufw` kurallarını atlar. Bu yüzden asıl koruma Hetzner'in
 sunucu dışındaki güvenlik duvarı. Üretim ayarı (`docker-compose.prod.yml`) zaten yalnız Caddy'nin
@@ -267,5 +271,7 @@ yüklendi:
 - Compose, `COMPOSE_FILE` ve `.env`: https://docs.docker.com/compose/how-tos/environment-variables/envvars/
 - TimescaleDB mantıksal yedek ve geri yükleme: https://www.tigerdata.com/docs/self-hosted/latest/backup-and-restore/logical-backup
 - Hetzner Cloud Firewall (ücretsiz; kural yoksa gelen trafik kapalı): https://docs.hetzner.com/cloud/firewalls/overview/
-- Hetzner Primary IP fiyatı (IPv4 ayda 0,50 €, KDV hariç): https://docs.hetzner.com/cloud/servers/primary-ips/overview/
+- Hetzner planları ve fiyatlar (2026-11-05): https://www.hetzner.com/cloud/cost-optimized/
+- Hetzner yeniden boyutlandırma ve konum: https://docs.hetzner.com/cloud/servers/faq/
+- Hetzner faturalama: https://docs.hetzner.com/cloud/billing/faq/
 - Ubuntu otomatik güncellemeler: https://ubuntu.com/server/docs/how-to/software/automatic-updates/
